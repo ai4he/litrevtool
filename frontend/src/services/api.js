@@ -43,6 +43,9 @@ export const jobsAPI = {
       },
     });
   },
+  getScreenshot: (jobId) => {
+    return `${API_URL}/api/v1/jobs/${jobId}/screenshot?t=${Date.now()}`;
+  },
 };
 
 export default api;
