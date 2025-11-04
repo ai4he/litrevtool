@@ -1,0 +1,28 @@
+{
+  "name": "litrevtool",
+  "version": "1.0.0",
+  "description": "LitRevTool - Google Scholar Literature Review Tool",
+  "scripts": {
+    "start": "pm2 start ecosystem.config.js",
+    "stop": "pm2 stop ecosystem.config.js",
+    "restart": "pm2 restart ecosystem.config.js",
+    "reload": "pm2 reload ecosystem.config.js",
+    "delete": "pm2 delete ecosystem.config.js",
+    "status": "pm2 status",
+    "logs": "pm2 logs",
+    "logs:frontend": "pm2 logs litrev-frontend",
+    "logs:backend": "pm2 logs litrev-backend",
+    "logs:celery": "pm2 logs litrev-celery",
+    "monit": "pm2 monit",
+    "save": "pm2 save",
+    "kill:port": "lsof -ti:3001 | xargs kill -9 2>/dev/null || true",
+    "clean:restart": "npm run kill:port && npm run restart"
+  },
+  "keywords": [
+    "literature-review",
+    "google-scholar",
+    "research"
+  ],
+  "author": "",
+  "license": "ISC"
+}
