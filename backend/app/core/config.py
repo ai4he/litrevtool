@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = "AIzaSyDxAW82IQqw4TBb8Od0UvnXafGCYrkwyOU"
 
     # Database
-    DATABASE_URL: str = "postgresql://litrevtool:litrevtool@db:5432/litrevtool"
+    DATABASE_URL: str = "sqlite:///./litrevtool.db"
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"

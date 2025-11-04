@@ -6,7 +6,6 @@ python-multipart==0.0.6
 # Database
 sqlalchemy>=2.0.35
 alembic>=1.12.1
-psycopg2-binary==2.9.9
 
 # Task Queue
 celery==5.3.4
