@@ -1,17 +1,17 @@
 from sqlalchemy import Column, String, DateTime, Integer, Text, ForeignKey, JSON
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 
 from app.db.base_class import Base
+from app.models.user import GUID  # Import the database-agnostic GUID type
 
 
 class Paper(Base):
     __tablename__ = "papers"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    search_job_id = Column(UUID(as_uuid=True), ForeignKey("search_jobs.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    search_job_id = Column(GUID(), ForeignKey("search_jobs.id"), nullable=False)
 
     # Paper metadata
     title = Column(Text, nullable=False)

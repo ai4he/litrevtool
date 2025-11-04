@@ -1,17 +1,17 @@
 from sqlalchemy import Column, String, DateTime, Integer, Boolean, Text, ForeignKey, JSON, Float
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 
 from app.db.base_class import Base
+from app.models.user import GUID  # Import the database-agnostic GUID type
 
 
 class SearchJob(Base):
     __tablename__ = "search_jobs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.id"), nullable=False)
 
     # Search parameters
     name = Column(String, nullable=False)

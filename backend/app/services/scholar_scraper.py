@@ -1,67 +1,102 @@
 import time
 import logging
 from typing import List, Dict, Optional, Callable
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, WebDriverException
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.chrome.service import Service
+from playwright.sync_api import sync_playwright, Page, Browser
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from tenacity import retry, stop_after_attempt, wait_exponential
 import re
+import random
+import socket
+import socks
 
 logger = logging.getLogger(__name__)
 
 
 class GoogleScholarScraper:
     """
-    Google Scholar scraper that can extract more than 1000 papers.
+    Google Scholar scraper that can extract more than 1000 papers using Playwright with Tor.
 
     Strategy to overcome 1000 paper limit:
     1. Split searches by year if date range is specified
     2. Use multiple keyword combinations to divide results
     3. Implement pagination through all available pages
     4. Handle rate limiting and CAPTCHAs gracefully
+    5. Use Tor for IP rotation
     """
 
-    def __init__(self, headless: bool = True):
+    def __init__(self, headless: bool = True, use_tor: bool = True):
         self.headless = headless
-        self.driver = None
+        self.use_tor = use_tor
+        self.browser = None
+        self.page = None
+        self.playwright = None
         self.ua = UserAgent()
+        self.request_count = 0
+        self.last_request_time = 0
 
-    def _init_driver(self):
-        """Initialize Selenium WebDriver with anti-detection measures."""
-        chrome_options = Options()
+    def _rotate_tor_circuit(self):
+        """Request a new Tor circuit to get a new IP address."""
+        try:
+            import telnetlib
+            with telnetlib.Telnet('127.0.0.1', 9051) as tn:
+                tn.write(b"AUTHENTICATE\r\n")
+                tn.read_until(b"250 OK", timeout=5)
+                tn.write(b"SIGNAL NEWNYM\r\n")
+                tn.read_until(b"250 OK", timeout=5)
+            logger.info("Tor circuit rotated successfully")
+            time.sleep(5)  # Wait for new circuit
+        except Exception as e:
+            logger.warning(f"Could not rotate Tor circuit: {e}")
 
-        if self.headless:
-            chrome_options.add_argument("--headless")
+    def _init_browser(self):
+        """Initialize Playwright browser with anti-detection measures and Tor proxy."""
+        self.playwright = sync_playwright().start()
 
-        # Anti-detection measures
-        chrome_options.add_argument(f"user-agent={self.ua.random}")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option("useAutomationExtension", False)
+        # Browser launch args
+        args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-blink-features=AutomationControlled'
+        ]
 
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Add Tor proxy
+        if self.use_tor:
+            args.append('--proxy-server=socks5://127.0.0.1:9050')
+            logger.info("Using Tor SOCKS proxy on 127.0.0.1:9050")
 
-        # Remove webdriver flag
-        self.driver.execute_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        self.browser = self.playwright.chromium.launch(
+            headless=self.headless,
+            args=args
         )
 
+        # Create context with custom user agent
+        context = self.browser.new_context(
+            user_agent=self.ua.random,
+            viewport={'width': 1920, 'height': 1080}
+        )
+
+        self.page = context.new_page()
+
+        # Remove webdriver flags
+        self.page.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined
+            });
+        """)
+
     def close(self):
-        """Close the WebDriver."""
-        if self.driver:
-            self.driver.quit()
-            self.driver = None
+        """Close the browser."""
+        if self.page:
+            self.page.close()
+            self.page = None
+        if self.browser:
+            self.browser.close()
+            self.browser = None
+        if self.playwright:
+            self.playwright.stop()
+            self.playwright = None
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def _search_page(self, query: str, start: int = 0, year_low: Optional[int] = None,
@@ -78,8 +113,27 @@ class GoogleScholarScraper:
         Returns:
             HTML content of the page
         """
-        if not self.driver:
-            self._init_driver()
+        if not self.page:
+            self._init_browser()
+
+        # Rotate Tor circuit every 10-20 requests if using Tor
+        if self.use_tor and self.request_count > 0 and self.request_count % random.randint(10, 20) == 0:
+            logger.info(f"Rotating Tor circuit after {self.request_count} requests")
+            self._rotate_tor_circuit()
+
+        # Dynamic delay based on request count and time since last request
+        current_time = time.time()
+        if self.last_request_time > 0:
+            time_since_last = current_time - self.last_request_time
+            # Ensure minimum delay of 8-15 seconds between requests
+            min_delay = random.uniform(8, 15)
+            if time_since_last < min_delay:
+                wait_time = min_delay - time_since_last
+                logger.info(f"Dynamic delay: waiting {wait_time:.2f} seconds")
+                time.sleep(wait_time)
+
+        self.request_count += 1
+        self.last_request_time = time.time()
 
         # Build URL
         base_url = "https://scholar.google.com/scholar"
@@ -94,32 +148,35 @@ class GoogleScholarScraper:
 
         url = base_url + params
 
-        logger.info(f"Fetching: {url}")
+        logger.info(f"Fetching: {url} (request #{self.request_count})")
 
         try:
-            self.driver.get(url)
+            self.page.goto(url, wait_until='networkidle', timeout=30000)
 
-            # Random delay to appear more human-like
-            time.sleep(2 + (time.time() % 3))
+            # Additional random delay to appear more human-like
+            human_delay = random.uniform(2, 5)
+            logger.info(f"Human-like delay: {human_delay:.2f} seconds")
+            time.sleep(human_delay)
 
             # Check for CAPTCHA
-            if "sorry" in self.driver.current_url.lower() or "captcha" in self.driver.page_source.lower():
-                logger.warning("CAPTCHA detected! Waiting longer...")
-                time.sleep(30)  # Wait longer and retry
+            page_content = self.page.content()
+            if "sorry" in self.page.url.lower() or "captcha" in page_content.lower():
+                logger.warning("CAPTCHA detected! Rotating circuit and waiting longer...")
+                if self.use_tor:
+                    self._rotate_tor_circuit()
+                time.sleep(60)  # Wait longer and retry
                 raise Exception("CAPTCHA detected")
 
             # Wait for results to load
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "gs_res_ccl_mid"))
-            )
+            try:
+                self.page.wait_for_selector("#gs_res_ccl_mid", timeout=10000)
+            except:
+                logger.warning("Results container not found, but continuing...")
 
-            return self.driver.page_source
+            return page_content
 
-        except TimeoutException:
-            logger.error("Timeout waiting for results to load")
-            raise
-        except WebDriverException as e:
-            logger.error(f"WebDriver error: {e}")
+        except Exception as e:
+            logger.error(f"Error fetching page: {e}")
             raise
 
     def _parse_results(self, html: str) -> List[Dict]:
@@ -309,8 +366,7 @@ class GoogleScholarScraper:
                         # Move to next page
                         start += 10
 
-                        # Be nice to Google's servers
-                        time.sleep(3 + (time.time() % 2))
+                        # Note: Dynamic delays are handled in _search_page() method
 
                     except Exception as e:
                         logger.error(f"Error fetching page {start}: {e}")

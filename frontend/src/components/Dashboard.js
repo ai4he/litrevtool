@@ -12,6 +12,11 @@ import {
   Chip,
   IconButton,
   Alert,
+  Collapse,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -19,6 +24,8 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   PlayArrow as PlayArrowIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import CreateJobDialog from './CreateJobDialog';
 
@@ -28,6 +35,8 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [error, setError] = useState(null);
+  const [jobPapers, setJobPapers] = useState({});
+  const [expandedJobs, setExpandedJobs] = useState({});
 
   useEffect(() => {
     fetchJobs();
@@ -97,6 +106,34 @@ function Dashboard() {
       setError('Failed to download results');
     }
   };
+
+  const fetchPapers = async (jobId) => {
+    try {
+      const response = await jobsAPI.getPapers(jobId);
+      setJobPapers(prev => ({ ...prev, [jobId]: response.data.papers }));
+    } catch (error) {
+      console.error('Error fetching papers:', error);
+    }
+  };
+
+  const toggleExpanded = (jobId) => {
+    const isExpanding = !expandedJobs[jobId];
+    setExpandedJobs(prev => ({ ...prev, [jobId]: isExpanding }));
+
+    // Fetch papers when expanding if not already loaded
+    if (isExpanding && !jobPapers[jobId]) {
+      fetchPapers(jobId);
+    }
+  };
+
+  // Fetch papers for running jobs automatically
+  useEffect(() => {
+    jobs.forEach(job => {
+      if ((job.status === 'running' || job.status === 'completed') && expandedJobs[job.id]) {
+        fetchPapers(job.id);
+      }
+    });
+  }, [jobs]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -199,14 +236,64 @@ function Dashboard() {
                   {job.status === 'running' && (
                     <Box sx={{ mt: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2">
-                          Progress: {job.papers_processed} papers
+                        <Typography variant="body2" fontWeight="bold">
+                          Progress: {job.papers_processed} / {job.total_papers_found || '?'} papers
                         </Typography>
-                        <Typography variant="body2">
+                        <Typography variant="body2" fontWeight="bold" color="primary">
                           {job.progress.toFixed(1)}%
                         </Typography>
                       </Box>
-                      <LinearProgress variant="determinate" value={job.progress} />
+                      <LinearProgress
+                        variant="determinate"
+                        value={job.progress}
+                        sx={{
+                          height: 8,
+                          borderRadius: 1,
+                          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 1,
+                            background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 100%)',
+                          }
+                        }}
+                      />
+
+                      {/* Current Activity */}
+                      {job.last_checkpoint && (
+                        <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1 }}>
+                          <Typography variant="caption" color="primary" fontWeight="bold">
+                            🔍 Currently Processing:
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            {job.last_checkpoint.last_year_completed
+                              ? `Year ${parseInt(job.last_checkpoint.last_year_completed) + 1}`
+                              : 'Initializing...'}
+                          </Typography>
+                          {job.last_checkpoint.papers_collected && (
+                            <Typography variant="caption" color="textSecondary">
+                              📄 {job.last_checkpoint.papers_collected} papers collected so far
+                            </Typography>
+                          )}
+                        </Box>
+                      )}
+
+                      {/* Time Estimation */}
+                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="caption" color="textSecondary">
+                          ⏱️ Started: {job.started_at ? new Date(job.started_at).toLocaleTimeString() : 'N/A'}
+                        </Typography>
+                        {job.progress > 0 && job.started_at && (
+                          <Typography variant="caption" color="textSecondary">
+                            ⏳ Est. remaining: {(() => {
+                              const elapsed = Date.now() - new Date(job.started_at).getTime();
+                              const rate = job.progress / elapsed;
+                              const remaining = (100 - job.progress) / rate;
+                              const minutes = Math.floor(remaining / 60000);
+                              const seconds = Math.floor((remaining % 60000) / 1000);
+                              return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                            })()}
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
                   )}
 
@@ -245,6 +332,17 @@ function Dashboard() {
                       </IconButton>
                     )}
 
+                    {(job.status === 'running' || job.status === 'completed') && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={expandedJobs[job.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        onClick={() => toggleExpanded(job.id)}
+                      >
+                        {expandedJobs[job.id] ? 'Hide' : 'Show'} Papers ({jobPapers[job.id]?.length || 0})
+                      </Button>
+                    )}
+
                     <IconButton
                       size="small"
                       onClick={fetchJobs}
@@ -262,6 +360,66 @@ function Dashboard() {
                       <DeleteIcon />
                     </IconButton>
                   </Box>
+
+                  {/* Papers List */}
+                  <Collapse in={expandedJobs[job.id]} timeout="auto" unmountOnExit>
+                    <Box sx={{ mt: 2 }}>
+                      <Divider sx={{ mb: 2 }} />
+                      <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                        Extracted Papers
+                      </Typography>
+                      {jobPapers[job.id] && jobPapers[job.id].length > 0 ? (
+                        <List dense sx={{ maxHeight: 400, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                          {jobPapers[job.id].map((paper, index) => (
+                            <React.Fragment key={paper.id}>
+                              {index > 0 && <Divider />}
+                              <ListItem alignItems="flex-start">
+                                <ListItemText
+                                  primary={
+                                    <Typography variant="body2" fontWeight="bold">
+                                      {index + 1}. {paper.title}
+                                    </Typography>
+                                  }
+                                  secondary={
+                                    <Box component="span">
+                                      {paper.authors && (
+                                        <Typography variant="caption" display="block" color="textSecondary">
+                                          {paper.authors}
+                                        </Typography>
+                                      )}
+                                      {(paper.year || paper.source) && (
+                                        <Typography variant="caption" display="block" color="textSecondary">
+                                          {paper.year && `${paper.year}`}
+                                          {paper.year && paper.source && ' • '}
+                                          {paper.source}
+                                        </Typography>
+                                      )}
+                                      {paper.citations !== null && paper.citations !== undefined && (
+                                        <Typography variant="caption" display="block" color="primary">
+                                          Cited by: {paper.citations}
+                                        </Typography>
+                                      )}
+                                      {paper.url && (
+                                        <Typography variant="caption" display="block">
+                                          <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
+                                            🔗 Link
+                                          </a>
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  }
+                                />
+                              </ListItem>
+                            </React.Fragment>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2" color="textSecondary" align="center" sx={{ p: 2 }}>
+                          No papers extracted yet
+                        </Typography>
+                      )}
+                    </Box>
+                  </Collapse>
 
                   <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
                     Created: {new Date(job.created_at).toLocaleString()}

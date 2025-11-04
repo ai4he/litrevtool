@@ -7,7 +7,9 @@ import os
 from app.db.session import get_db
 from app.models.user import User
 from app.models.search_job import SearchJob as SearchJobModel
+from app.models.paper import Paper as PaperModel
 from app.schemas.search_job import SearchJob, SearchJobCreate, SearchJobUpdate, SearchJobList
+from app.schemas.paper import Paper, PaperList
 from app.api.auth import get_current_user
 from app.tasks.scraping_tasks import run_search_job, resume_failed_job
 
@@ -249,6 +251,47 @@ async def resume_search_job(
 
     db.refresh(job)
     return job
+
+
+@router.get("/{job_id}/papers", response_model=PaperList)
+async def get_job_papers(
+    job_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get papers extracted for a specific search job.
+
+    Args:
+        job_id: Job UUID
+        skip: Number of records to skip
+        limit: Maximum number of records to return
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        List of papers
+    """
+    # Verify job belongs to current user
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    # Get papers for this job
+    query = db.query(PaperModel).filter(PaperModel.search_job_id == job_id)
+    total = query.count()
+    papers = query.order_by(PaperModel.created_at.desc()).offset(skip).limit(limit).all()
+
+    return PaperList(papers=papers, total=total)
 
 
 @router.get("/{job_id}/download")

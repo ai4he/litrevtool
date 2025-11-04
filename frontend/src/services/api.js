@@ -32,6 +32,7 @@ export const jobsAPI = {
   updateJob: (jobId, data) => api.patch(`/jobs/${jobId}`, data),
   deleteJob: (jobId) => api.delete(`/jobs/${jobId}`),
   resumeJob: (jobId) => api.post(`/jobs/${jobId}/resume`),
+  getPapers: (jobId, skip = 0, limit = 50) => api.get(`/jobs/${jobId}/papers`, { params: { skip, limit } }),
   downloadResults: (jobId) => {
     return axios({
       url: `${API_URL}/api/v1/jobs/${jobId}/download`,
