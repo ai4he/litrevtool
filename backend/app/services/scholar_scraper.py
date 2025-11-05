@@ -222,6 +222,8 @@ class GoogleScholarScraper:
             page_content = self.page.content()
             if "sorry" in self.page.url.lower() or "captcha" in page_content.lower():
                 logger.warning("CAPTCHA detected! Rotating circuit and waiting longer...")
+                # Capture screenshot of CAPTCHA page
+                self._capture_screenshot("CAPTCHA")
                 if self.use_tor:
                     self._rotate_tor_circuit()
                 time.sleep(60)  # Wait longer and retry
@@ -322,7 +324,8 @@ class GoogleScholarScraper:
         start_year: Optional[int] = None,
         end_year: Optional[int] = None,
         max_results: Optional[int] = None,
-        progress_callback: Optional[Callable[[int, int], None]] = None
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+        papers_callback: Optional[Callable[[List[Dict]], None]] = None
     ) -> List[Dict]:
         """
         Search Google Scholar with given criteria.
@@ -339,6 +342,7 @@ class GoogleScholarScraper:
             end_year: Ending year for search
             max_results: Maximum number of results to return (None for all)
             progress_callback: Optional callback function(current, total) for progress updates
+            papers_callback: Optional callback function(papers_batch) to save papers incrementally
 
         Returns:
             List of paper dictionaries
@@ -404,14 +408,20 @@ class GoogleScholarScraper:
                             consecutive_empty = 0
 
                         # Filter duplicates
+                        new_papers = []
                         for paper in papers:
                             title = paper.get('title', '').strip().lower()
                             if title and title not in seen_titles:
                                 seen_titles.add(title)
                                 all_papers.append(paper)
+                                new_papers.append(paper)
 
                                 if max_results and len(all_papers) >= max_results:
                                     break
+
+                        # Save new papers incrementally via callback
+                        if papers_callback and new_papers:
+                            papers_callback(new_papers)
 
                         # Update progress
                         if progress_callback:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { jobsAPI } from '../services/api';
 import {
@@ -37,6 +37,7 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [jobPapers, setJobPapers] = useState({});
   const [expandedJobs, setExpandedJobs] = useState({});
+  const [screenshots, setScreenshots] = useState({});
 
   useEffect(() => {
     fetchJobs();
@@ -107,14 +108,39 @@ function Dashboard() {
     }
   };
 
-  const fetchPapers = async (jobId) => {
+  const fetchPapers = useCallback(async (jobId) => {
     try {
       const response = await jobsAPI.getPapers(jobId);
       setJobPapers(prev => ({ ...prev, [jobId]: response.data.papers }));
     } catch (error) {
       console.error('Error fetching papers:', error);
     }
-  };
+  }, []);
+
+  const fetchScreenshot = useCallback(async (jobId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(jobsAPI.getScreenshot(jobId), {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        setScreenshots(prev => {
+          // Revoke old URL if it exists to prevent memory leak
+          if (prev[jobId]) {
+            URL.revokeObjectURL(prev[jobId]);
+          }
+          return { ...prev, [jobId]: imageUrl };
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching screenshot:', error);
+    }
+  }, []);
 
   const toggleExpanded = (jobId) => {
     const isExpanding = !expandedJobs[jobId];
@@ -126,14 +152,24 @@ function Dashboard() {
     }
   };
 
-  // Fetch papers for running jobs automatically
+  // Fetch papers for running/completed jobs automatically
   useEffect(() => {
     jobs.forEach(job => {
-      if ((job.status === 'running' || job.status === 'completed') && expandedJobs[job.id]) {
+      // Always fetch papers for running jobs, and for completed/expanded jobs
+      if (job.status === 'running' || ((job.status === 'completed') && expandedJobs[job.id])) {
         fetchPapers(job.id);
       }
     });
-  }, [jobs]);
+  }, [jobs, expandedJobs, fetchPapers]);
+
+  // Fetch screenshots for running jobs
+  useEffect(() => {
+    jobs.forEach(job => {
+      if (job.status === 'running') {
+        fetchScreenshot(job.id);
+      }
+    });
+  }, [jobs, fetchScreenshot]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -295,6 +331,18 @@ function Dashboard() {
                         )}
                       </Box>
 
+                      {/* Real-time Status Message */}
+                      {job.status_message && (
+                        <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1, border: '1px solid', borderColor: 'primary.light' }}>
+                          <Typography variant="caption" color="primary.main" fontWeight="bold" sx={{ display: 'block', mb: 0.5 }}>
+                            🔄 Current Status
+                          </Typography>
+                          <Typography variant="body2" color="textPrimary">
+                            {job.status_message}
+                          </Typography>
+                        </Box>
+                      )}
+
                       {/* Browser Screenshot */}
                       <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                         <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
@@ -310,44 +358,58 @@ function Dashboard() {
                             overflow: 'hidden',
                           }}
                         >
-                          <img
-                            key={Date.now()} // Force refresh on re-render
-                            src={jobsAPI.getScreenshot(job.id)}
-                            alt="Browser screenshot"
-                            style={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'contain',
-                            }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                            onLoad={(e) => {
-                              e.target.style.display = 'block';
-                              e.target.nextSibling.style.display = 'none';
-                            }}
-                          />
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <Typography variant="caption" color="textSecondary">
-                              No screenshot available yet...
-                            </Typography>
-                          </Box>
+                          {screenshots[job.id] ? (
+                            <img
+                              src={screenshots[job.id]}
+                              alt="Browser screenshot"
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                              }}
+                            />
+                          ) : (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Typography variant="caption" color="textSecondary">
+                                No screenshot available yet...
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
+                      </Box>
+
+                      {/* Live Papers Display for Running Jobs */}
+                      <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                          📄 Papers Status
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
+                          {job.papers_processed > 0 ? (
+                            <>
+                              Collecting papers... {job.papers_processed} found so far
+                              <br />
+                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                                Papers will be available when the job completes
+                              </Typography>
+                            </>
+                          ) : (
+                            'Initializing search...'
+                          )}
+                        </Typography>
                       </Box>
                     </Box>
                   )}

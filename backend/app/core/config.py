@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -25,11 +27,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./litrevtool.db"
 
     # Redis
-    REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # Celery
-    CELERY_BROKER_URL: str = "redis://redis:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://redis:6379/0"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
     # Email
     SMTP_HOST: Optional[str] = None
@@ -39,7 +41,7 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@litrevtool.com"
 
     # File Storage
-    UPLOAD_DIR: str = "/app/uploads"
+    UPLOAD_DIR: str = str(Path(__file__).parent.parent.parent / "uploads")
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
 
     # Frontend URL

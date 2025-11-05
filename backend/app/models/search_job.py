@@ -27,6 +27,7 @@ class SearchJob(Base):
         nullable=False,
         default="pending"
     )  # pending, running, paused, completed, failed
+    status_message = Column(Text, nullable=True)  # Real-time status updates for transparency
     progress = Column(Float, default=0.0)  # 0.0 to 100.0
     total_papers_found = Column(Integer, default=0)
     papers_processed = Column(Integer, default=0)
