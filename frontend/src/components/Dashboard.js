@@ -395,21 +395,60 @@ function Dashboard() {
                       {/* Live Papers Display for Running Jobs */}
                       <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                         <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
-                          📄 Papers Status
+                          📄 Papers Collected ({jobPapers[job.id]?.length || 0} papers)
                         </Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
-                          {job.papers_processed > 0 ? (
-                            <>
-                              Collecting papers... {job.papers_processed} found so far
-                              <br />
-                              <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                                Papers will be available when the job completes
-                              </Typography>
-                            </>
-                          ) : (
-                            'Initializing search...'
-                          )}
-                        </Typography>
+                        {jobPapers[job.id] && jobPapers[job.id].length > 0 ? (
+                          <List dense sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider', mt: 1 }}>
+                            {jobPapers[job.id].slice(0, 10).map((paper, index) => (
+                              <React.Fragment key={paper.id}>
+                                {index > 0 && <Divider />}
+                                <ListItem alignItems="flex-start" sx={{ py: 0.5 }}>
+                                  <ListItemText
+                                    primary={
+                                      <Typography variant="caption" fontWeight="bold">
+                                        {index + 1}. {paper.title}
+                                      </Typography>
+                                    }
+                                    secondary={
+                                      <Box component="span">
+                                        <Typography variant="caption" display="block" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                                          {paper.authors && `${paper.authors.substring(0, 80)}${paper.authors.length > 80 ? '...' : ''}`}
+                                          {paper.year && ` • ${paper.year}`}
+                                          {paper.citations !== null && paper.citations !== undefined && ` • Cited: ${paper.citations}`}
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              </React.Fragment>
+                            ))}
+                            {jobPapers[job.id].length > 10 && (
+                              <ListItem sx={{ py: 0.5, bgcolor: 'rgba(0, 0, 0, 0.02)' }}>
+                                <ListItemText
+                                  primary={
+                                    <Typography variant="caption" color="textSecondary" align="center">
+                                      ... and {jobPapers[job.id].length - 10} more papers
+                                    </Typography>
+                                  }
+                                />
+                              </ListItem>
+                            )}
+                          </List>
+                        ) : (
+                          <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
+                            {job.papers_processed > 0 ? (
+                              <>
+                                Collecting papers... {job.papers_processed} found so far
+                                <br />
+                                <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+                                  Papers are loading...
+                                </Typography>
+                              </>
+                            ) : (
+                              'Initializing search...'
+                            )}
+                          </Typography>
+                        )}
                       </Box>
                     </Box>
                   )}
