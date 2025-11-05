@@ -9,6 +9,8 @@ import re
 import random
 import socket
 import socks
+import os
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +27,73 @@ class GoogleScholarScraper:
     5. Use Tor for IP rotation
     """
 
-    def __init__(self, headless: bool = True, use_tor: bool = True):
+    def __init__(self, headless: bool = True, use_tor: bool = True, job_id: Optional[str] = None, screenshot_dir: Optional[str] = None):
         self.headless = headless
         self.use_tor = use_tor
+        self.job_id = job_id
+        self.screenshot_dir = screenshot_dir
         self.browser = None
         self.page = None
         self.playwright = None
         self.ua = UserAgent()
         self.request_count = 0
         self.last_request_time = 0
+
+        # Create screenshot directory if specified
+        if self.screenshot_dir:
+            os.makedirs(self.screenshot_dir, exist_ok=True)
+
+    def _capture_screenshot(self, suffix: str = ""):
+        """
+        Capture a screenshot of the current page.
+
+        Args:
+            suffix: Optional suffix to add to the filename
+        """
+        if not self.screenshot_dir or not self.page:
+            return
+
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]  # Include milliseconds
+            filename = f"scraper_{self.job_id}_{timestamp}"
+            if suffix:
+                filename += f"_{suffix}"
+            filename += ".png"
+
+            screenshot_path = os.path.join(self.screenshot_dir, filename)
+            self.page.screenshot(path=screenshot_path, full_page=False)
+            logger.info(f"Screenshot saved: {screenshot_path}")
+
+            # Keep only the latest screenshot for this job (delete older ones)
+            self._cleanup_old_screenshots()
+
+        except Exception as e:
+            logger.error(f"Error capturing screenshot: {e}")
+
+    def _cleanup_old_screenshots(self):
+        """Remove old screenshots for this job, keeping only the most recent one."""
+        if not self.screenshot_dir or not self.job_id:
+            return
+
+        try:
+            # Get all screenshot files for this job
+            prefix = f"scraper_{self.job_id}_"
+            screenshots = [
+                f for f in os.listdir(self.screenshot_dir)
+                if f.startswith(prefix) and f.endswith('.png')
+            ]
+
+            # Sort by filename (which includes timestamp)
+            screenshots.sort()
+
+            # Keep only the latest one, delete the rest
+            if len(screenshots) > 1:
+                for old_screenshot in screenshots[:-1]:
+                    old_path = os.path.join(self.screenshot_dir, old_screenshot)
+                    os.remove(old_path)
+                    logger.debug(f"Removed old screenshot: {old_screenshot}")
+        except Exception as e:
+            logger.error(f"Error cleaning up old screenshots: {e}")
 
     def _rotate_tor_circuit(self):
         """Request a new Tor circuit to get a new IP address."""
@@ -172,6 +232,9 @@ class GoogleScholarScraper:
                 self.page.wait_for_selector("#gs_res_ccl_mid", timeout=10000)
             except:
                 logger.warning("Results container not found, but continuing...")
+
+            # Capture screenshot after successful page load
+            self._capture_screenshot(f"page_{start}")
 
             return page_content
 

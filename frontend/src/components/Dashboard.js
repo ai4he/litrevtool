@@ -294,6 +294,61 @@ function Dashboard() {
                           </Typography>
                         )}
                       </Box>
+
+                      {/* Browser Screenshot */}
+                      <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                          📸 Live Browser View
+                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            width: '100%',
+                            paddingTop: '56.25%', // 16:9 aspect ratio
+                            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                            borderRadius: 1,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <img
+                            key={Date.now()} // Force refresh on re-render
+                            src={jobsAPI.getScreenshot(job.id)}
+                            alt="Browser screenshot"
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                            }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                            onLoad={(e) => {
+                              e.target.style.display = 'block';
+                              e.target.nextSibling.style.display = 'none';
+                            }}
+                          />
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Typography variant="caption" color="textSecondary">
+                              No screenshot available yet...
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
                     </Box>
                   )}
 

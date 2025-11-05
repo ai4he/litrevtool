@@ -55,8 +55,15 @@ def run_search_job(self, job_id: str):
             start_year = job.last_checkpoint['last_year_completed'] + 1
             logger.info(f"Resuming from year {start_year}")
 
-        # Initialize scraper
-        scraper = GoogleScholarScraper(headless=True)
+        # Initialize scraper with screenshot support
+        screenshot_dir = os.path.join(settings.UPLOAD_DIR, "screenshots")
+        os.makedirs(screenshot_dir, exist_ok=True)
+
+        scraper = GoogleScholarScraper(
+            headless=True,
+            job_id=str(job_id),
+            screenshot_dir=screenshot_dir
+        )
 
         # Progress callback to update database
         def update_progress(current: int, estimated_total: int):

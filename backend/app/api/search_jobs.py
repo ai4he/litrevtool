@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import os
+import glob
 
 from app.db.session import get_db
 from app.models.user import User
@@ -12,6 +13,7 @@ from app.schemas.search_job import SearchJob, SearchJobCreate, SearchJobUpdate, 
 from app.schemas.paper import Paper, PaperList
 from app.api.auth import get_current_user
 from app.tasks.scraping_tasks import run_search_job, resume_failed_job
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -340,4 +342,59 @@ async def download_results(
         path=job.csv_file_path,
         media_type="text/csv",
         filename=filename
+    )
+
+
+@router.get("/{job_id}/screenshot")
+async def get_latest_screenshot(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get the latest screenshot for a running search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        Latest screenshot image
+    """
+    # Verify job belongs to current user
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    # Find the latest screenshot for this job
+    screenshot_dir = os.path.join(settings.UPLOAD_DIR, "screenshots")
+    pattern = os.path.join(screenshot_dir, f"scraper_{job_id}_*.png")
+
+    screenshots = glob.glob(pattern)
+
+    if not screenshots:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No screenshot available yet"
+        )
+
+    # Get the most recent screenshot (they're sorted by timestamp in filename)
+    latest_screenshot = max(screenshots, key=os.path.getctime)
+
+    return FileResponse(
+        path=latest_screenshot,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0"
+        }
     )
