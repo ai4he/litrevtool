@@ -63,7 +63,7 @@ services:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Celery Worker
+  # Celery Worker with VNC
   worker:
     build:
       context: ./backend
@@ -80,15 +80,32 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       FRONTEND_URL: http://localhost:3000
+      DISPLAY: :99
+      SCRAPER_HEADLESS: "false"
     volumes:
       - ./backend:/app
       - uploads:/app/uploads
+    ports:
+      - "5900:5900"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2
+
+  # noVNC Web Client
+  novnc:
+    image: theasp/novnc:latest
+    container_name: litrevtool-novnc
+    environment:
+      DISPLAY_WIDTH: 1920
+      DISPLAY_HEIGHT: 1080
+      RUN_XTERM: "no"
+    ports:
+      - "6080:8080"
+    depends_on:
+      - worker
+    command: --vnc worker:5900
 
   # Celery Flower (monitoring)
   flower:

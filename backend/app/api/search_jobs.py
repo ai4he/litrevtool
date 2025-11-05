@@ -398,3 +398,42 @@ async def get_latest_screenshot(
             "Expires": "0"
         }
     )
+
+
+@router.get("/{job_id}/vnc-info")
+async def get_vnc_info(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get VNC connection information for a running search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        VNC connection details including noVNC URL
+    """
+    # Verify job belongs to current user
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    # Return noVNC connection URL
+    # The noVNC service runs on port 6080 and connects to the worker's VNC server
+    return {
+        "vnc_url": "http://localhost:6080/vnc.html",
+        "display": ":99",
+        "password": "litrevtool",
+        "status": job.status
+    }

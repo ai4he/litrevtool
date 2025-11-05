@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including VNC and X server
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     unzip \
     curl \
+    xvfb \
+    x11vnc \
+    fluxbox \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Chrome for Selenium
@@ -31,5 +35,19 @@ COPY . .
 # Create upload directory
 RUN mkdir -p /app/uploads
 
-# Run Celery worker
-CMD ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+# Create VNC password directory
+RUN mkdir -p /root/.vnc && \
+    x11vnc -storepasswd litrevtool /root/.vnc/passwd
+
+# Create supervisor configuration
+RUN mkdir -p /var/log/supervisor
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Expose VNC port
+EXPOSE 5900
+
+# Set environment variables for display
+ENV DISPLAY=:99
+
+# Run supervisor to manage Xvfb, VNC, Fluxbox, and Celery
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

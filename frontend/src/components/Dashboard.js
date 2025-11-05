@@ -26,6 +26,8 @@ import {
   PlayArrow as PlayArrowIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  CameraAlt as CameraAltIcon,
+  Tv as TvIcon,
 } from '@mui/icons-material';
 import CreateJobDialog from './CreateJobDialog';
 
@@ -38,6 +40,8 @@ function Dashboard() {
   const [jobPapers, setJobPapers] = useState({});
   const [expandedJobs, setExpandedJobs] = useState({});
   const [screenshots, setScreenshots] = useState({});
+  const [viewMode, setViewMode] = useState('screenshot'); // 'screenshot' or 'vnc'
+  const [vncInfo, setVncInfo] = useState(null);
 
   useEffect(() => {
     fetchJobs();
@@ -142,6 +146,15 @@ function Dashboard() {
     }
   }, []);
 
+  const fetchVncInfo = useCallback(async (jobId) => {
+    try {
+      const response = await jobsAPI.getVncInfo(jobId);
+      setVncInfo(response.data);
+    } catch (error) {
+      console.error('Error fetching VNC info:', error);
+    }
+  }, []);
+
   const toggleExpanded = (jobId) => {
     const isExpanding = !expandedJobs[jobId];
     setExpandedJobs(prev => ({ ...prev, [jobId]: isExpanding }));
@@ -165,11 +178,21 @@ function Dashboard() {
   // Fetch screenshots for running jobs
   useEffect(() => {
     jobs.forEach(job => {
-      if (job.status === 'running') {
+      if (job.status === 'running' && viewMode === 'screenshot') {
         fetchScreenshot(job.id);
       }
     });
-  }, [jobs, fetchScreenshot]);
+  }, [jobs, fetchScreenshot, viewMode]);
+
+  // Fetch VNC info when switching to VNC mode
+  useEffect(() => {
+    if (viewMode === 'vnc') {
+      const runningJob = jobs.find(job => job.status === 'running');
+      if (runningJob) {
+        fetchVncInfo(runningJob.id);
+      }
+    }
+  }, [viewMode, jobs, fetchVncInfo]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -343,53 +366,119 @@ function Dashboard() {
                         </Box>
                       )}
 
-                      {/* Browser Screenshot */}
+                      {/* Browser View - Screenshot or VNC */}
                       <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
-                          📸 Live Browser View
-                        </Typography>
-                        <Box
-                          sx={{
-                            position: 'relative',
-                            width: '100%',
-                            paddingTop: '56.25%', // 16:9 aspect ratio
-                            backgroundColor: 'rgba(0, 0, 0, 0.05)',
-                            borderRadius: 1,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {screenshots[job.id] ? (
-                            <img
-                              src={screenshots[job.id]}
-                              alt="Browser screenshot"
-                              style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                              }}
-                            />
-                          ) : (
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="caption" color="textSecondary" fontWeight="bold">
+                            {viewMode === 'screenshot' ? '📸 Live Browser View' : '🖥️ VNC Remote Control'}
+                          </Typography>
+                          <Box>
+                            <Button
+                              size="small"
+                              variant={viewMode === 'screenshot' ? 'contained' : 'outlined'}
+                              startIcon={<CameraAltIcon />}
+                              onClick={() => setViewMode('screenshot')}
+                              sx={{ mr: 1, textTransform: 'none', fontSize: '0.7rem', py: 0.25, px: 1 }}
                             >
-                              <Typography variant="caption" color="textSecondary">
-                                No screenshot available yet...
-                              </Typography>
-                            </Box>
-                          )}
+                              Screenshot
+                            </Button>
+                            <Button
+                              size="small"
+                              variant={viewMode === 'vnc' ? 'contained' : 'outlined'}
+                              startIcon={<TvIcon />}
+                              onClick={() => setViewMode('vnc')}
+                              sx={{ textTransform: 'none', fontSize: '0.7rem', py: 0.25, px: 1 }}
+                            >
+                              VNC
+                            </Button>
+                          </Box>
                         </Box>
+
+                        {viewMode === 'screenshot' ? (
+                          <Box
+                            sx={{
+                              position: 'relative',
+                              width: '100%',
+                              paddingTop: '56.25%', // 16:9 aspect ratio
+                              backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {screenshots[job.id] ? (
+                              <img
+                                src={screenshots[job.id]}
+                                alt="Browser screenshot"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'contain',
+                                }}
+                              />
+                            ) : (
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Typography variant="caption" color="textSecondary">
+                                  No screenshot available yet...
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        ) : (
+                          <Box
+                            sx={{
+                              position: 'relative',
+                              width: '100%',
+                              height: '600px',
+                              backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                              borderRadius: 1,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {vncInfo ? (
+                              <iframe
+                                src={vncInfo.vnc_url}
+                                title="VNC Remote Control"
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  border: 'none',
+                                }}
+                              />
+                            ) : (
+                              <Box
+                                sx={{
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Typography variant="caption" color="textSecondary">
+                                  Loading VNC connection...
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary" sx={{ mt: 1 }}>
+                                  Password: litrevtool
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                        )}
                       </Box>
 
                       {/* Live Papers Display for Running Jobs */}

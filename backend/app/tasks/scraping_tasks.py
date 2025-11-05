@@ -62,8 +62,11 @@ def run_search_job(self, job_id: str):
         screenshot_dir = os.path.join(settings.UPLOAD_DIR, "screenshots")
         os.makedirs(screenshot_dir, exist_ok=True)
 
+        # Use headless mode by default, but allow VNC mode for manual intervention
+        headless_mode = os.getenv('SCRAPER_HEADLESS', 'true').lower() == 'true'
+
         scraper = GoogleScholarScraper(
-            headless=True,
+            headless=headless_mode,
             job_id=str(job_id),
             screenshot_dir=screenshot_dir
         )
