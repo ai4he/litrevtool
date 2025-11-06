@@ -1,24 +1,21 @@
 /**
- * PM2 Configuration - ORIGINAL (Deprecated)
+ * PM2 Configuration for Python Backend (DEPRECATED)
  *
- * NOTE: This is the original configuration file that referenced the Python backend.
- * The Python backend has been moved to backend-python-backup/ and replaced with Node.js.
+ * This configuration is for the old Python backend that has been replaced
+ * by the Node.js backend. It is kept for emergency rollback purposes only.
  *
- * CURRENT CONFIGURATIONS:
- *   - ecosystem.config.node.js   (Node.js backend - USE THIS)
- *   - ecosystem.config.python.js (Python backend rollback - emergency use only)
+ * To use this configuration:
+ *   pm2 start ecosystem.config.python.js
  *
- * To start the current Node.js backend:
+ * For the current Node.js backend, use:
  *   pm2 start ecosystem.config.node.js
- *
- * This file is kept for reference only.
  */
 
 module.exports = {
   apps: [
     {
       name: 'litrev-backend',
-      cwd: '/home/ubuntu/litrevtool/backend',
+      cwd: '/home/ubuntu/litrevtool/backend-python-backup',
       script: 'venv/bin/uvicorn',
       args: 'app.main:app --host 0.0.0.0 --port 8000 --workers 1',
       interpreter: 'none',
@@ -32,17 +29,17 @@ module.exports = {
       exp_backoff_restart_delay: 100,
       env: {
         NODE_ENV: 'production',
-        PATH: '/home/ubuntu/litrevtool/backend/venv/bin:' + process.env.PATH,
+        PATH: '/home/ubuntu/litrevtool/backend-python-backup/venv/bin:' + process.env.PATH,
         PYTHONUNBUFFERED: '1'
       },
-      error_file: '/home/ubuntu/litrevtool/backend/logs/backend-error.log',
-      out_file: '/home/ubuntu/litrevtool/backend/logs/backend-out.log',
+      error_file: '/home/ubuntu/litrevtool/backend-python-backup/logs/backend-error.log',
+      out_file: '/home/ubuntu/litrevtool/backend-python-backup/logs/backend-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true
     },
     {
       name: 'litrev-celery',
-      cwd: '/home/ubuntu/litrevtool/backend',
+      cwd: '/home/ubuntu/litrevtool/backend-python-backup',
       script: 'venv/bin/celery',
       args: '-A app.tasks.celery_app worker --loglevel=info --concurrency=1 --max-memory-per-child=200000 --task-soft-time-limit=1800 --task-time-limit=2100',
       interpreter: 'none',
@@ -56,11 +53,11 @@ module.exports = {
       exp_backoff_restart_delay: 100,
       env: {
         NODE_ENV: 'production',
-        PATH: '/home/ubuntu/litrevtool/backend/venv/bin:' + process.env.PATH,
+        PATH: '/home/ubuntu/litrevtool/backend-python-backup/venv/bin:' + process.env.PATH,
         PYTHONUNBUFFERED: '1'
       },
-      error_file: '/home/ubuntu/litrevtool/backend/logs/celery-error.log',
-      out_file: '/home/ubuntu/litrevtool/backend/logs/celery-out.log',
+      error_file: '/home/ubuntu/litrevtool/backend-python-backup/logs/celery-error.log',
+      out_file: '/home/ubuntu/litrevtool/backend-python-backup/logs/celery-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true
     },
