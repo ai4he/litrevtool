@@ -56,6 +56,8 @@ async def create_search_job(
         keywords_include=job_data.keywords_include,
         keywords_exclude=job_data.keywords_exclude or [],
         semantic_criteria=job_data.semantic_criteria.dict() if job_data.semantic_criteria else None,
+        semantic_batch_mode=job_data.semantic_batch_mode if job_data.semantic_batch_mode is not None else True,
+        generate_latex=job_data.generate_latex if job_data.generate_latex is not None else False,
         start_year=job_data.start_year,
         end_year=job_data.end_year,
         max_results=job_data.max_results,

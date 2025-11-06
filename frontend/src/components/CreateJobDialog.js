@@ -28,6 +28,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
     semantic_inclusion: '',
     semantic_exclusion: '',
     semantic_batch_mode: true,
+    generate_latex: false,
   });
 
   const [currentKeyword, setCurrentKeyword] = useState('');
@@ -112,6 +113,8 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
       jobData.semantic_batch_mode = formData.semantic_batch_mode;
     }
 
+    jobData.generate_latex = formData.generate_latex;
+
     onSubmit(jobData);
     handleReset();
   };
@@ -128,6 +131,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
       semantic_inclusion: '',
       semantic_exclusion: '',
       semantic_batch_mode: true,
+      generate_latex: false,
     });
     setCurrentKeyword('');
     setCurrentExclude('');
@@ -349,6 +353,29 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
               />
             </Box>
           )}
+
+          <Divider sx={{ my: 2 }} />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.generate_latex}
+                onChange={(e) =>
+                  setFormData({ ...formData, generate_latex: e.target.checked })
+                }
+              />
+            }
+            label={
+              <Box>
+                <Typography variant="body2">
+                  Generate Research Paper (LaTeX)
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  Automatically generate a systematic literature review document in LaTeX format with BibTeX citations
+                </Typography>
+              </Box>
+            }
+          />
 
           <Typography variant="caption" color="textSecondary" sx={{ mt: 2, display: 'block' }}>
             Note: The search will run in the background. You'll receive an email when it's complete.
