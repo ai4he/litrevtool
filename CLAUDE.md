@@ -318,12 +318,55 @@ npm restart                # Quick restart of all services
 6. **Port conflicts?** → `npm run kill:port` kills processes on 3001/8000
 7. **Complete failure?** → `npm run reset` (preserves database and .env)
 
+## Testing and CI/CD
+
+LitRevTool includes comprehensive testing infrastructure and CI/CD pipeline:
+
+### Testing Framework
+- **Backend**: pytest with coverage, async support, and mocking
+- **Frontend**: Jest + React Testing Library
+- **Code Quality**: black, isort, flake8, ESLint, prettier
+- **Pre-commit Hooks**: Automated quality checks before commits
+
+### Quick Start
+
+```bash
+# Backend tests
+cd backend && pytest
+
+# Frontend tests
+cd frontend && npm test
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+npm run test:coverage
+
+# Install pre-commit hooks
+pip install pre-commit && pre-commit install
+```
+
+### CI/CD Pipeline (GitHub Actions)
+
+Automated workflow runs on every push/PR:
+- ✅ Unit, integration, and API tests
+- ✅ Code quality checks (linting, formatting)
+- ✅ Security scanning
+- ✅ Coverage reporting
+- ✅ Multi-version testing (Python 3.11, 3.12 / Node 18, 20)
+
+### Documentation
+- **[TESTING_QUICK_START.md](TESTING_QUICK_START.md)** - Quick reference for running tests
+- **[docs/TESTING.md](docs/TESTING.md)** - Comprehensive testing guide
+- **[docs/CICD_SETUP.md](docs/CICD_SETUP.md)** - CI/CD pipeline setup and configuration
+
 ## Additional Documentation
 
 For more detailed information, see the following documentation in the `docs/` folder:
 
 - **[docs/SETUP.md](docs/SETUP.md)** - Detailed installation and setup instructions
-- **[docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md)** - **NEW**: Multi-strategy scraping system (recommended reading)
+- **[docs/TESTING.md](docs/TESTING.md)** - **NEW**: Comprehensive testing guide with pytest and Jest
+- **[docs/CICD_SETUP.md](docs/CICD_SETUP.md)** - **NEW**: CI/CD pipeline setup with GitHub Actions
+- **[docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md)** - Multi-strategy scraping system (recommended reading)
 - **[docs/DEPLOYMENT_SUMMARY.md](docs/DEPLOYMENT_SUMMARY.md)** - Architecture overview and deployment summary
 - **[docs/PM2_COMMANDS.md](docs/PM2_COMMANDS.md)** - Complete PM2 service management commands
 - **[docs/RESET.md](docs/RESET.md)** - System reset procedures and recovery
