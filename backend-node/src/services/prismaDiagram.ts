@@ -1,3 +1,7 @@
+/**
+ * Enhanced PRISMA 2020 Flow Diagram Generator
+ * Generates publication-ready PRISMA diagrams following PRISMA 2020 standards
+ */
 import fs from 'fs';
 import path from 'path';
 import { config } from '../core/config';
@@ -8,6 +12,7 @@ interface PrismaMetrics {
   screening: number;
   eligibility: number;
   included: number;
+  [key: string]: any;
 }
 
 export function generatePrismaDiagram(
@@ -18,49 +23,150 @@ export function generatePrismaDiagram(
   const filename = `${jobName.replace(/\s+/g, '_')}_PRISMA_${jobId}.svg`;
   const filepath = path.join(config.UPLOAD_DIR, filename);
 
-  // Simple SVG PRISMA diagram
+  // Enhanced SVG PRISMA diagram following PRISMA 2020 standards
   const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    .box { fill: #e3f2fd; stroke: #1976d2; stroke-width: 2; }
-    .text { font-family: Arial; font-size: 14px; text-anchor: middle; }
-    .title { font-size: 18px; font-weight: bold; }
-    .arrow { stroke: #333; stroke-width: 2; fill: none; marker-end: url(#arrowhead); }
-  </style>
-
+<svg width="900" height="800" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- Gradient for boxes -->
+    <linearGradient id="boxGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#e3f2fd;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#bbdefb;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Arrow marker -->
     <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
-      <polygon points="0 0, 10 3, 0 6" fill="#333" />
+      <polygon points="0 0, 10 3, 0 6" fill="#1976d2" />
     </marker>
   </defs>
 
-  <text x="400" y="30" class="text title">PRISMA 2020 Flow Diagram</text>
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" style="font-family: Arial; font-size: 24px; font-weight: bold; fill: #1976d2;">
+    PRISMA 2020 Flow Diagram
+  </text>
 
-  <!-- Identification -->
-  <rect x="300" y="60" width="200" height="60" class="box" />
-  <text x="400" y="85" class="text">Identification</text>
-  <text x="400" y="105" class="text">Records: ${metrics.identification}</text>
+  <!-- Identification Stage -->
+  <g>
+    <rect x="250" y="70" width="400" height="80" fill="url(#boxGradient)"
+          stroke="#1976d2" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="450" y="95" text-anchor="middle" style="font-family: Arial; font-size: 16px; font-weight: bold;">
+      Identification
+    </text>
+    <text x="450" y="120" text-anchor="middle" style="font-family: Arial; font-size: 14px;">
+      Records identified from database searching
+    </text>
+    <text x="450" y="140" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
+      n = ${metrics.identification}
+    </text>
+  </g>
 
-  <line x1="400" y1="120" x2="400" y2="150" class="arrow" />
+  <!-- Arrow -->
+  <line x1="450" y1="150" x2="450" y2="190" stroke="#1976d2" stroke-width="3" marker-end="url(#arrowhead)"/>
 
-  <!-- Screening -->
-  <rect x="300" y="150" width="200" height="60" class="box" />
-  <text x="400" y="175" class="text">Screening</text>
-  <text x="400" y="195" class="text">Records: ${metrics.screening}</text>
+  <!-- Screening Stage -->
+  <g>
+    <rect x="250" y="190" width="400" height="80" fill="url(#boxGradient)"
+          stroke="#1976d2" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="450" y="215" text-anchor="middle" style="font-family: Arial; font-size: 16px; font-weight: bold;">
+      Screening
+    </text>
+    <text x="450" y="240" text-anchor="middle" style="font-family: Arial; font-size: 14px;">
+      Records after duplicates removed
+    </text>
+    <text x="450" y="260" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
+      n = ${metrics.screening}
+    </text>
+  </g>
 
-  <line x1="400" y1="210" x2="400" y2="240" class="arrow" />
+  <!-- Arrow -->
+  <line x1="450" y1="270" x2="450" y2="310" stroke="#1976d2" stroke-width="3" marker-end="url(#arrowhead)"/>
 
-  <!-- Eligibility -->
-  <rect x="300" y="240" width="200" height="60" class="box" />
-  <text x="400" y="265" class="text">Eligibility</text>
-  <text x="400" y="285" class="text">Records: ${metrics.eligibility}</text>
+  <!-- Eligibility Stage -->
+  <g>
+    <rect x="250" y="310" width="400" height="100" fill="url(#boxGradient)"
+          stroke="#1976d2" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="450" y="335" text-anchor="middle" style="font-family: Arial; font-size: 16px; font-weight: bold;">
+      Eligibility
+    </text>
+    <text x="450" y="360" text-anchor="middle" style="font-family: Arial; font-size: 14px;">
+      Full-text articles assessed for eligibility
+    </text>
+    <text x="450" y="380" text-anchor="middle" style="font-family: Arial; font-size: 14px;">
+      (including semantic filtering if applied)
+    </text>
+    <text x="450" y="400" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
+      n = ${metrics.eligibility}
+    </text>
+  </g>
 
-  <line x1="400" y1="300" x2="400" y2="330" class="arrow" />
+  <!-- Arrow -->
+  <line x1="450" y1="410" x2="450" y2="450" stroke="#1976d2" stroke-width="3" marker-end="url(#arrowhead)"/>
 
-  <!-- Included -->
-  <rect x="300" y="330" width="200" height="60" class="box" />
-  <text x="400" y="355" class="text">Included</text>
-  <text x="400" y="375" class="text">Records: ${metrics.included}</text>
+  <!-- Included Stage -->
+  <g>
+    <rect x="250" y="450" width="400" height="100" fill="#4caf50"
+          stroke="#2e7d32" stroke-width="3" rx="5" filter="url(#shadow)"/>
+    <text x="450" y="480" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: white;">
+      Included
+    </text>
+    <text x="450" y="510" text-anchor="middle" style="font-family: Arial; font-size: 16px; fill: white;">
+      Studies included in review
+    </text>
+    <text x="450" y="540" text-anchor="middle" style="font-family: Arial; font-size: 22px; font-weight: bold; fill: white;">
+      n = ${metrics.included}
+    </text>
+  </g>
+
+  <!-- Exclusions box (right side) -->
+  <g>
+    <rect x="680" y="310" width="200" height="100" fill="#ffebee"
+          stroke="#c62828" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="780" y="335" text-anchor="middle" style="font-family: Arial; font-size: 14px; font-weight: bold; fill: #c62828;">
+      Excluded
+    </text>
+    <text x="780" y="360" text-anchor="middle" style="font-family: Arial; font-size: 12px;">
+      ${metrics.eligibility - metrics.included} articles excluded
+    </text>
+    <text x="780" y="380" text-anchor="middle" style="font-family: Arial; font-size: 11px;">
+      (semantic criteria or
+    </text>
+    <text x="780" y="395" text-anchor="middle" style="font-family: Arial; font-size: 11px;">
+      other reasons)
+    </text>
+  </g>
+
+  <!-- Connection line to exclusions -->
+  <line x1="650" y1="360" x2="680" y2="360" stroke="#c62828" stroke-width="2" stroke-dasharray="5,5"/>
+
+  <!-- Footer -->
+  <text x="450" y="600" text-anchor="middle" style="font-family: Arial; font-size: 12px; fill: #666;">
+    Generated by LitRevTool following PRISMA 2020 guidelines
+  </text>
+
+  <!-- Source reference -->
+  <text x="450" y="620" text-anchor="middle" style="font-family: Arial; font-size: 10px; fill: #999;">
+    Page et al. (2021) The PRISMA 2020 statement. BMJ 372:n71
+  </text>
+
+  <!-- Metadata -->
+  <text x="20" y="780" style="font-family: Arial; font-size: 10px; fill: #999;">
+    Job: ${jobName}
+  </text>
+  <text x="20" y="795" style="font-family: Arial; font-size: 10px; fill: #999;">
+    Generated: ${new Date().toISOString().split('T')[0]}
+  </text>
 </svg>`;
 
   fs.writeFileSync(filepath, svg);
