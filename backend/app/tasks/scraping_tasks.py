@@ -9,6 +9,7 @@ from app.tasks.celery_app import celery_app
 from app.db.session import SessionLocal
 from app.models import SearchJob, Paper
 from app.services.scholar_scraper import GoogleScholarScraper
+from app.services.multi_strategy_scraper import MultiStrategyScholarScraper
 from app.services.semantic_filter import SemanticFilter
 from app.services.email_service import EmailService
 from app.core.config import settings
@@ -62,9 +63,11 @@ def run_search_job(self, job_id: str):
         screenshot_dir = os.path.join(settings.UPLOAD_DIR, "screenshots")
         os.makedirs(screenshot_dir, exist_ok=True)
 
-        scraper = GoogleScholarScraper(
+        # Use multi-strategy scraper for better robustness
+        # Tries: scholarly library (with Tor) -> direct requests -> Playwright
+        scraper = MultiStrategyScholarScraper(
+            use_tor=True,  # Enable Tor for scholarly strategy (will fallback if not available)
             headless=True,
-            use_tor=False,  # Tor not installed, use direct connection
             job_id=str(job_id),
             screenshot_dir=screenshot_dir
         )

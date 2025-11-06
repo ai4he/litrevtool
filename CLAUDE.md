@@ -104,7 +104,10 @@ npm test                   # Run tests
 1. User creates search via `CreateJobDialog.js`
 2. API creates `SearchJob` in database with status "pending"
 3. Celery task `run_search_job()` is triggered
-4. `GoogleScholarScraper` initializes Playwright browser with optional Tor
+4. **Multi-Strategy Scraper** tries three approaches automatically:
+   - **PRIMARY**: `scholarly` library with Tor support (fast, designed for Scholar)
+   - **FALLBACK 1**: Direct HTTP requests with user agent rotation (lightweight)
+   - **FALLBACK 2**: Playwright browser automation (most reliable but slower)
 5. **Year splitting**: If year range specified (e.g., 2020-2023), creates 4 separate searches
 6. For each year: paginate through all results (up to ~1000 per year)
 7. Optional: `SemanticFilter` uses Gemini AI to filter papers based on inclusion/exclusion criteria
@@ -113,12 +116,16 @@ npm test                   # Run tests
 10. `EmailService` sends completion notification
 11. Job status updated to "completed" or "failed"
 
+**NEW**: The system now uses a robust multi-strategy approach that automatically fails over between different scraping methods. See [docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md) for details.
+
 ### Key Files to Know
 - `ecosystem.config.js` - PM2 configuration (service definitions, env vars, log paths)
 - `.env` - Environment variables (Google OAuth credentials, SMTP, Gemini API key)
 - `backend/litrevtool.db` - SQLite database (auto-created)
 - `backend/uploads/` - CSV exports and screenshots
 - `deploy.sh` - Automated deployment script with prerequisite checks
+- `backend/app/services/multi_strategy_scraper.py` - **NEW**: Multi-strategy scraping orchestrator
+- `backend/app/services/scholar_scraper.py` - Playwright browser automation (now used as fallback)
 
 ## Configuration
 
@@ -296,6 +303,7 @@ npm restart                # Quick restart of all services
 For more detailed information, see the following documentation in the `docs/` folder:
 
 - **[docs/SETUP.md](docs/SETUP.md)** - Detailed installation and setup instructions
+- **[docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md)** - **NEW**: Multi-strategy scraping system (recommended reading)
 - **[docs/DEPLOYMENT_SUMMARY.md](docs/DEPLOYMENT_SUMMARY.md)** - Architecture overview and deployment summary
 - **[docs/PM2_COMMANDS.md](docs/PM2_COMMANDS.md)** - Complete PM2 service management commands
 - **[docs/RESET.md](docs/RESET.md)** - System reset procedures and recovery

@@ -14,7 +14,7 @@ import {
   FormControlLabel,
   Divider,
 } from '@mui/material';
-import { Add as AddIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Add as AddIcon } from '@mui/icons-material';
 
 function CreateJobDialog({ open, onClose, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -30,6 +30,28 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
 
   const [currentKeyword, setCurrentKeyword] = useState('');
   const [currentExclude, setCurrentExclude] = useState('');
+
+  // Keyword suggestions
+  const inclusionSuggestions = ['large language models', 'mathematical reasoning'];
+  const exclusionSuggestions = ['survey', 'review'];
+
+  const handleAddSuggestion = (keyword, type) => {
+    const list = type === 'include' ? formData.keywords_include : formData.keywords_exclude;
+    // Don't add if already in the list
+    if (!list.includes(keyword)) {
+      if (type === 'include') {
+        setFormData({
+          ...formData,
+          keywords_include: [...formData.keywords_include, keyword],
+        });
+      } else {
+        setFormData({
+          ...formData,
+          keywords_exclude: [...formData.keywords_exclude, keyword],
+        });
+      }
+    }
+  };
 
   const handleAddKeyword = () => {
     if (currentKeyword.trim()) {
@@ -127,7 +149,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
           <Typography variant="subtitle2" gutterBottom>
             Inclusion Keywords (at least one required)
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <TextField
               size="small"
               fullWidth
@@ -139,6 +161,29 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             <IconButton onClick={handleAddKeyword} color="primary">
               <AddIcon />
             </IconButton>
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block' }}>
+              Suggestions (click to add):
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {inclusionSuggestions.map((suggestion, index) => (
+                <Chip
+                  key={index}
+                  label={suggestion}
+                  onClick={() => handleAddSuggestion(suggestion, 'include')}
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  sx={{
+                    cursor: 'pointer',
+                    opacity: formData.keywords_include.includes(suggestion) ? 0.5 : 1,
+                    '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.08)' }
+                  }}
+                  disabled={formData.keywords_include.includes(suggestion)}
+                />
+              ))}
+            </Box>
           </Box>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
             {formData.keywords_include.map((keyword, index) => (
@@ -154,7 +199,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
           <Typography variant="subtitle2" gutterBottom>
             Exclusion Keywords (optional)
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <TextField
               size="small"
               fullWidth
@@ -166,6 +211,29 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             <IconButton onClick={handleAddExclude} color="secondary">
               <AddIcon />
             </IconButton>
+          </Box>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block' }}>
+              Suggestions (click to add):
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {exclusionSuggestions.map((suggestion, index) => (
+                <Chip
+                  key={index}
+                  label={suggestion}
+                  onClick={() => handleAddSuggestion(suggestion, 'exclude')}
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  sx={{
+                    cursor: 'pointer',
+                    opacity: formData.keywords_exclude.includes(suggestion) ? 0.5 : 1,
+                    '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.08)' }
+                  }}
+                  disabled={formData.keywords_exclude.includes(suggestion)}
+                />
+              ))}
+            </Box>
           </Box>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
             {formData.keywords_exclude.map((keyword, index) => (
