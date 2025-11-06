@@ -13,6 +13,7 @@ from app.services.scholar_scraper import GoogleScholarScraper
 from app.services.multi_strategy_scraper import MultiStrategyScholarScraper
 from app.services.semantic_filter import SemanticFilter
 from app.services.email_service import EmailService
+from app.services.prisma_diagram import generate_prisma_diagram
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -251,6 +252,19 @@ def run_search_job(self, job_id: str):
                    f"Semantic assessed: {prisma_metrics['eligibility']['full_text_assessed']}, "
                    f"Final included: {prisma_metrics['included']['studies_included']}")
 
+        # Generate PRISMA flow diagram
+        diagram_filename = f"prisma_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.svg"
+        diagram_path = os.path.join(settings.UPLOAD_DIR, diagram_filename)
+        try:
+            logger.info("Generating PRISMA flow diagram...")
+            job.status_message = "Generating PRISMA flow diagram..."
+            db.commit()
+            generate_prisma_diagram(prisma_metrics, diagram_path)
+            logger.info(f"PRISMA diagram generated: {diagram_path}")
+        except Exception as e:
+            logger.error(f"Error generating PRISMA diagram: {e}")
+            diagram_path = None  # Don't fail the job if diagram generation fails
+
         # Update job
         job.status = "completed"
         job.status_message = f"Job completed successfully! {len(papers)} papers found."
@@ -259,6 +273,7 @@ def run_search_job(self, job_id: str):
         job.papers_processed = len(papers)
         job.progress = 100.0
         job.csv_file_path = csv_path
+        job.prisma_diagram_path = diagram_path  # Save PRISMA diagram path
         job.prisma_metrics = prisma_metrics  # Save PRISMA metrics
         job.last_checkpoint = None  # Clear checkpoint on success
         db.commit()

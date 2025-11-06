@@ -108,6 +108,22 @@ function Dashboard() {
     }
   };
 
+  const handleDownloadPrismaDiagram = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadPrismaDiagram(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'image/svg+xml' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_PRISMA.svg`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading PRISMA diagram:', error);
+      setError('Failed to download PRISMA diagram');
+    }
+  };
+
   const fetchPapers = useCallback(async (jobId) => {
     try {
       const response = await jobsAPI.getPapers(jobId);
@@ -518,16 +534,29 @@ function Dashboard() {
                     </Alert>
                   )}
 
-                  <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
                     {job.status === 'completed' && (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => handleDownload(job.id, job.name)}
-                      >
-                        Download CSV
-                      </Button>
+                      <>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownload(job.id, job.name)}
+                        >
+                          Download CSV
+                        </Button>
+                        {job.prisma_diagram_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadPrismaDiagram(job.id, job.name)}
+                            sx={{ borderColor: 'success.main', color: 'success.main', '&:hover': { borderColor: 'success.dark', bgcolor: 'success.light' } }}
+                          >
+                            PRISMA Diagram
+                          </Button>
+                        )}
+                      </>
                     )}
 
                     {job.status === 'failed' && (

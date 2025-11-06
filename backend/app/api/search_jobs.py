@@ -346,6 +346,55 @@ async def download_results(
     )
 
 
+@router.get("/{job_id}/prisma-diagram")
+async def download_prisma_diagram(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download PRISMA flow diagram for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        SVG file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.prisma_diagram_path or not os.path.exists(job.prisma_diagram_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="PRISMA diagram not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_PRISMA_{job.id}.svg"
+
+    return FileResponse(
+        path=job.prisma_diagram_path,
+        media_type="image/svg+xml",
+        filename=filename
+    )
+
+
 @router.get("/{job_id}/screenshot")
 async def get_latest_screenshot(
     job_id: str,

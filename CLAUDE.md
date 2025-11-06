@@ -114,8 +114,9 @@ npm test                   # Run tests
 8. Optional: `SemanticFilter` uses Gemini AI to filter papers based on inclusion/exclusion criteria (batch or individual mode)
 9. Papers saved to database with deduplication
 10. Export to CSV in `backend/uploads/` with Semantic_Score column
-11. `EmailService` sends completion notification
-12. Job status updated to "completed" or "failed" with PRISMA metrics saved
+11. Generate PRISMA flow diagram (SVG) showing the systematic review process
+12. `EmailService` sends completion notification
+13. Job status updated to "completed" or "failed" with PRISMA metrics and diagram saved
 
 **NEW**: The system now uses a robust multi-strategy approach that automatically fails over between different scraping methods. See [docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md) for details.
 

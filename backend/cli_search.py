@@ -31,6 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.db.session import SessionLocal
 from app.models import SearchJob, Paper, User
 from app.tasks.scraping_tasks import run_search_job
+from app.services.prisma_diagram import generate_prisma_diagram
 from app.core.config import settings
 import uuid
 
@@ -390,6 +391,16 @@ def display_summary(
         print(f"  {Colors.OKGREEN}Studies included in results:     {prisma['included']['studies_included']}{Colors.ENDC}")
 
         print()
+
+        # Generate and save PRISMA diagram
+        try:
+            diagram_filename = output_file.rsplit('.', 1)[0] + '_PRISMA.svg'
+            generate_prisma_diagram(prisma, diagram_filename)
+            print_success(f"PRISMA flow diagram saved: {diagram_filename}")
+            print()
+        except Exception as e:
+            print_warning(f"Could not generate PRISMA diagram: {e}")
+            print()
 
     # Display strategy statistics if available
     print_info("Multi-strategy scraper used - check logs for which strategy succeeded")

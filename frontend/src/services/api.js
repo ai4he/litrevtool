@@ -43,6 +43,16 @@ export const jobsAPI = {
       },
     });
   },
+  downloadPrismaDiagram: (jobId) => {
+    return axios({
+      url: `${API_URL}/api/v1/jobs/${jobId}/prisma-diagram`,
+      method: 'GET',
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+  },
   getScreenshot: (jobId) => {
     return `${API_URL}/api/v1/jobs/${jobId}/screenshot?t=${Date.now()}`;
   },

@@ -45,6 +45,7 @@ class SearchJob(BaseModel):
     retry_count: int
     celery_task_id: Optional[str] = None
     csv_file_path: Optional[str] = None
+    prisma_diagram_path: Optional[str] = None
     prisma_metrics: Optional[Dict] = None
     created_at: datetime
     updated_at: datetime

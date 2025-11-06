@@ -44,6 +44,7 @@ class SearchJob(Base):
 
     # Results
     csv_file_path = Column(String, nullable=True)
+    prisma_diagram_path = Column(String, nullable=True)  # Path to PRISMA flow diagram SVG
 
     # PRISMA methodology metrics
     prisma_metrics = Column(JSON, nullable=True)  # Tracks systematic review stages
