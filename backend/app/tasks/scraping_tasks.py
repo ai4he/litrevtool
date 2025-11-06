@@ -64,6 +64,7 @@ def run_search_job(self, job_id: str):
 
         scraper = GoogleScholarScraper(
             headless=True,
+            use_tor=False,  # Tor not installed, use direct connection
             job_id=str(job_id),
             screenshot_dir=screenshot_dir
         )
