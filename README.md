@@ -20,14 +20,18 @@ The application consists of the following components:
 
 - **Frontend**: React + Material-UI dashboard
 - **Backend API**: FastAPI (Python)
-- **Database**: PostgreSQL for storing users, jobs, and papers
+- **Database**: SQLite for storing users, jobs, and papers
 - **Task Queue**: Celery + Redis for background scraping
+- **Process Manager**: PM2 for service orchestration
 - **Scraper**: Selenium-based Google Scholar scraper
 - **AI Filter**: Google Gemini API for semantic filtering
 
 ## Prerequisites
 
-- Docker and Docker Compose
+- Python 3.8 or higher
+- Node.js 16 or higher
+- Redis server
+- PM2 (installed automatically by deployment script)
 - Google OAuth 2.0 credentials (Client ID and Secret)
 - (Optional) SMTP credentials for email notifications
 - Google Gemini API key (already included: `AIzaSyDxAW82IQqw4TBb8Od0UvnXafGCYrkwyOU`)
@@ -64,29 +68,91 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
 ```
 
-### 3. Start the Application
+### 3. Deploy the Application
+
+**Option A: One-command deployment with npm**
 
 ```bash
-# Build and start all services
-docker-compose up --build
-
-# Or run in detached mode
-docker-compose up -d
+npm run deploy
 ```
 
-This will start:
-- Frontend: http://localhost:3000
+**Option B: Manual deployment steps**
+
+```bash
+# Install all dependencies
+npm run install:all
+
+# Initialize database
+npm run setup:db
+
+# Start all services
+npm start
+```
+
+**Option C: Using deployment script directly**
+
+```bash
+# Make script executable (first time only)
+chmod +x deploy.sh
+
+# Run deployment
+./deploy.sh
+```
+
+The deployment process will:
+- ✅ Check and validate all prerequisites (Python, Node.js, Redis, PM2)
+- ✅ Set up Python virtual environment and install dependencies
+- ✅ Install Node.js dependencies for the frontend
+- ✅ Initialize the SQLite database
+- ✅ Configure PM2 process manager
+- ✅ Start all services (backend, celery, frontend)
+- ✅ Perform health checks
+
+After deployment, services will be running at:
+- Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
-- Celery Flower (task monitoring): http://localhost:5555
-- PostgreSQL: localhost:5432
 - Redis: localhost:6379
 
 ### 4. Access the Application
 
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost:3001 in your browser
 2. Click "Sign in with Google"
 3. Create your first search!
+
+## Service Management
+
+All services are managed via npm scripts (powered by PM2):
+
+```bash
+# Start all services
+npm start
+
+# Stop all services
+npm stop
+
+# Restart all services
+npm restart
+
+# Check service status
+npm run status
+
+# View logs from all services
+npm run logs
+
+# View logs from specific service
+npm run logs:frontend
+npm run logs:backend
+npm run logs:celery
+
+# Monitor resource usage
+npm run monit
+
+# Full system reset (clear queues, kill stuck processes)
+npm run reset
+```
+
+For detailed PM2 commands, see [docs/PM2_COMMANDS.md](docs/PM2_COMMANDS.md).
 
 ## Usage
 
@@ -179,9 +245,7 @@ Interactive API documentation is available at:
 - `GET /api/v1/jobs/{job_id}/download` - Download CSV results
 - `POST /api/v1/jobs/{job_id}/resume` - Resume failed job
 
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 litrevtool/
@@ -198,39 +262,25 @@ litrevtool/
 │   │   │   └── email_service.py      # Email notifications
 │   │   ├── tasks/            # Celery tasks
 │   │   └── main.py           # FastAPI app
-│   ├── requirements.txt
-│   └── Dockerfile
+│   ├── requirements.txt      # Python dependencies
+│   ├── venv/                 # Python virtual environment
+│   └── litrevtool.db         # SQLite database
 ├── frontend/
 │   ├── src/
 │   │   ├── components/       # React components
 │   │   ├── contexts/         # React contexts
 │   │   ├── services/         # API client
 │   │   └── App.js
-│   ├── package.json
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+│   └── package.json          # Node dependencies
+├── docs/                     # Documentation
+│   ├── SETUP.md             # Detailed setup guide
+│   ├── PM2_COMMANDS.md      # PM2 management commands
+│   └── RESET.md             # System reset guide
+├── deploy.sh                 # Automated deployment script
+├── ecosystem.config.js       # PM2 configuration
+├── package.json             # npm scripts
+└── README.md                # This file
 ```
-
-### Running Tests
-
-The scraper can be tested independently:
-
-```bash
-# Enter the backend container
-docker-compose exec backend bash
-
-# Run scraper test
-python -m app.services.scholar_scraper
-```
-
-### Monitoring Celery Tasks
-
-Access Flower at http://localhost:5555 to monitor:
-- Active tasks
-- Task history
-- Worker status
-- Task details and logs
 
 ## Troubleshooting
 
@@ -248,34 +298,59 @@ If the scraper fails to start Chrome:
 
 ```bash
 # Check Chrome installation
-docker-compose exec worker google-chrome --version
+google-chrome --version
 
-# Rebuild worker container
-docker-compose up -d --build worker
+# Update webdriver
+cd backend
+source venv/bin/activate
+pip install --upgrade selenium webdriver-manager
 ```
 
-### Database Connection Issues
+### Service Issues
 
 ```bash
-# Check database status
-docker-compose exec db pg_isready
+# Check service status
+npm run status
 
-# Reset database
-docker-compose down -v
-docker-compose up -d
+# View logs
+npm run logs
+
+# Full system reset
+npm run reset
+```
+
+### Database Issues
+
+```bash
+# Backup database
+cp backend/litrevtool.db backend/litrevtool.db.backup
+
+# Reset database (WARNING: deletes all data)
+rm backend/litrevtool.db
+cd backend
+source venv/bin/activate
+python3 -c "from app.db.session import engine; from app.models import Base; Base.metadata.create_all(bind=engine)"
 ```
 
 ## Production Deployment
 
 For production:
 
-1. **Change SECRET_KEY** in `.env` to a secure random string
-2. **Use production SMTP** credentials
-3. **Enable HTTPS** (use nginx reverse proxy)
-4. **Scale workers**: `docker-compose up -d --scale worker=4`
-5. **Set up backups** for PostgreSQL
-6. **Configure rate limiting** on the API
-7. **Use cloud storage** for CSV files (S3, GCS)
+1. **Use a production domain** with HTTPS
+2. **Change SECRET_KEY** in `.env` to a secure random string
+3. **Use production SMTP** credentials
+4. **Configure PM2 startup**:
+   ```bash
+   sudo pm2 startup
+   pm2 save
+   ```
+5. **Set up nginx** as reverse proxy
+6. **Scale workers** if needed (modify ecosystem.config.js)
+7. **Set up automated backups** for SQLite database
+8. **Configure rate limiting** on the API
+9. **Monitor logs** regularly
+
+For complete production deployment instructions, see [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) and [docs/NGINX_SSL_SETUP.md](docs/NGINX_SSL_SETUP.md).
 
 ## Limitations
 
@@ -296,6 +371,18 @@ For production:
 | Resume Failed Jobs | No | Yes |
 | Web Interface | Desktop only | Web-based |
 
+## Documentation
+
+For detailed information, see the following documentation in the `docs/` folder:
+
+- **[Setup Guide](docs/SETUP.md)** - Detailed installation and setup instructions
+- **[Deployment Summary](docs/DEPLOYMENT_SUMMARY.md)** - Architecture overview and deployment summary
+- **[PM2 Commands](docs/PM2_COMMANDS.md)** - Complete service management commands
+- **[System Reset](docs/RESET.md)** - How to perform a full system reset
+- **[Production Checklist](docs/PRODUCTION_CHECKLIST.md)** - Production deployment checklist and configuration
+- **[Nginx SSL Setup](docs/NGINX_SSL_SETUP.md)** - Nginx reverse proxy and SSL/TLS configuration
+- **[NPM Commands](docs/NPM_COMMANDS.md)** - All available npm commands reference
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -307,12 +394,14 @@ This project is for educational and research purposes. Please respect Google Sch
 ## Support
 
 For issues or questions:
-1. Check the troubleshooting section
-2. Review logs: `docker-compose logs backend` or `docker-compose logs worker`
-3. Open an issue on GitHub
+1. Check the [troubleshooting section](#troubleshooting)
+2. Review the [setup guide](docs/SETUP.md)
+3. Check logs: `npm run logs`
+4. Open an issue on GitHub
 
 ## Acknowledgments
 
 - Built with FastAPI, React, and Selenium
 - Powered by Google Gemini AI
+- Process management by PM2
 - Inspired by Publish or Perish by Anne-Wil Harzing

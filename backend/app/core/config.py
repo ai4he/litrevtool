@@ -18,7 +18,17 @@ class Settings(BaseSettings):
     # Google OAuth
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    GOOGLE_REDIRECT_URI: Optional[str] = None
+
+    @property
+    def google_redirect_uri(self) -> str:
+        """Get Google OAuth redirect URI, with fallback to localhost"""
+        if self.GOOGLE_REDIRECT_URI:
+            return self.GOOGLE_REDIRECT_URI
+        # Try to construct from FRONTEND_URL
+        if self.FRONTEND_URL and self.FRONTEND_URL.startswith("https://"):
+            return f"{self.FRONTEND_URL}/api/v1/auth/google/callback"
+        return "http://localhost:8000/api/v1/auth/google/callback"
 
     # Google Gemini API
     GEMINI_API_KEY: str = "AIzaSyDxAW82IQqw4TBb8Od0UvnXafGCYrkwyOU"
@@ -47,11 +57,17 @@ class Settings(BaseSettings):
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"
 
-    # CORS
-    BACKEND_CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ]
+    # CORS - dynamically configured based on FRONTEND_URL
+    @property
+    def BACKEND_CORS_ORIGINS(self) -> list:
+        origins = [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:8000",
+            self.FRONTEND_URL,
+        ]
+        # Remove duplicates
+        return list(set(origins))
 
     # Scraping
     MAX_CONCURRENT_SCRAPERS: int = 3

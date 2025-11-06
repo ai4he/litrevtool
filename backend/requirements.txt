@@ -21,8 +21,7 @@ google-auth-oauthlib==1.1.0
 google-auth-httplib2==0.1.1
 
 # Web Scraping
-selenium==4.15.2
-webdriver-manager==4.0.1
+playwright==1.40.0
 beautifulsoup4==4.12.2
 lxml>=5.0.0
 fake-useragent==1.4.0
@@ -45,4 +44,5 @@ aiohttp==3.9.1
 # Utilities
 pydantic>=2.10.0
 pydantic-settings>=2.1.0
+email-validator>=2.0.0
 tenacity==8.2.3
