@@ -90,6 +90,8 @@ class ScholarlyStrategy(ScraperStrategy):
         super().__init__("Scholarly")
         self.use_tor = use_tor
         self.initialized = False
+        self.consecutive_errors = 0  # Track consecutive errors
+        self.max_consecutive_errors = 5  # Fail after this many errors in a row
 
     def _init_scholarly(self):
         """Initialize scholarly with proxy settings."""
@@ -213,8 +215,18 @@ class ScholarlyStrategy(ScraperStrategy):
                         except StopIteration:
                             break
                         except Exception as e:
-                            logger.warning(f"Scholarly: Error extracting paper: {e}")
+                            self.consecutive_errors += 1
+                            logger.warning(f"Scholarly: Error extracting paper: {e} (consecutive errors: {self.consecutive_errors})")
+
+                            # Fail strategy if too many consecutive errors
+                            if self.consecutive_errors >= self.max_consecutive_errors:
+                                logger.error(f"Scholarly: Too many consecutive errors ({self.consecutive_errors}), failing strategy")
+                                raise Exception(f"Scholarly strategy failed after {self.consecutive_errors} consecutive errors")
+
                             continue
+
+                        # Reset error counter on success
+                        self.consecutive_errors = 0
 
                         # Rate limiting - scholarly handles most of this, but add small delay
                         time.sleep(random.uniform(1, 2))
@@ -287,6 +299,8 @@ class RequestsStrategy(ScraperStrategy):
         self.request_count = 0
         self.last_request_time = 0
         self.use_tor = use_tor
+        self.captcha_count = 0  # Track consecutive CAPTCHA hits
+        self.max_captcha_retries = 3  # Fail strategy after this many CAPTCHAs
 
     def is_available(self) -> bool:
         """Requests strategy is always available."""
@@ -323,11 +337,6 @@ class RequestsStrategy(ScraperStrategy):
         """Get a rotating user agent."""
         return self.ua.random
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=2, min=4, max=30),
-        retry=retry_if_exception_type((requests.RequestException, ConnectionError))
-    )
     def _fetch_page(self, url: str) -> str:
         """Fetch a single page with retry logic."""
         self._init_session()
@@ -355,8 +364,20 @@ class RequestsStrategy(ScraperStrategy):
 
         # Check for blocking
         if 'sorry' in response.url.lower() or 'captcha' in response.text.lower():
-            logger.warning("Requests: CAPTCHA or block detected")
+            self.captcha_count += 1
+            logger.warning(f"Requests: CAPTCHA detected! (count: {self.captcha_count}/{self.max_captcha_retries})")
+
+            # If we've hit too many CAPTCHAs, fail this strategy immediately
+            if self.captcha_count >= self.max_captcha_retries:
+                logger.error(f"Requests: Too many CAPTCHAs ({self.captcha_count}), failing strategy")
+                raise Exception(f"CAPTCHA detected {self.captcha_count} times - Requests strategy failed")
+
             raise Exception("CAPTCHA detected")
+
+        # Reset CAPTCHA counter on successful request
+        if self.captcha_count > 0:
+            logger.info(f"Requests: Successfully fetched page, resetting CAPTCHA counter from {self.captcha_count} to 0")
+            self.captcha_count = 0
 
         # Human-like delay after successful request
         time.sleep(random.uniform(2, 4))
@@ -535,9 +556,11 @@ class RequestsStrategy(ScraperStrategy):
 
                     except Exception as e:
                         logger.error(f"Requests: Error fetching page {start}: {e}")
-                        # If we get blocked, don't continue
+                        # If we get CAPTCHA, fail immediately - don't continue pagination
                         if 'captcha' in str(e).lower():
+                            logger.error("Requests: CAPTCHA detected, stopping pagination and failing strategy")
                             raise
+                        # For other errors, skip this page and continue
                         start += 10
                         time.sleep(15)  # Wait longer after error
                         continue
@@ -710,11 +733,14 @@ class MultiStrategyScholarScraper:
             keywords_exclude = []
 
         last_exception = None
+        strategy_index = 0
+        total_strategies = len(self.strategy_order)
 
         for strategy_name in self.strategy_order:
+            strategy_index += 1
             strategy = self.strategies[strategy_name]
 
-            logger.info(f"MultiStrategy: Trying {strategy_name} strategy...")
+            logger.info(f"MultiStrategy: Trying strategy {strategy_index}/{total_strategies}: {strategy_name}")
 
             try:
                 results = strategy.search(
@@ -729,21 +755,28 @@ class MultiStrategyScholarScraper:
 
                 if results:
                     logger.info(
-                        f"MultiStrategy: {strategy_name} succeeded with {len(results)} papers "
+                        f"MultiStrategy: ✓ {strategy_name} succeeded with {len(results)} papers "
                         f"(success rate: {strategy.get_success_rate():.2%})"
                     )
                     return results
                 else:
-                    logger.warning(f"MultiStrategy: {strategy_name} returned no results")
+                    logger.warning(f"MultiStrategy: {strategy_name} returned no results, trying next strategy...")
                     last_exception = Exception(f"{strategy_name} returned no results")
+                    # Don't wait if no results, immediately try next strategy
                     continue
 
             except Exception as e:
-                logger.warning(f"MultiStrategy: {strategy_name} failed: {e}")
+                logger.warning(f"MultiStrategy: ✗ {strategy_name} failed: {e}")
                 last_exception = e
 
-                # Wait before trying next strategy
-                time.sleep(10)
+                # If CAPTCHA detected, switch strategies faster (3 seconds instead of 10)
+                if 'captcha' in str(e).lower() or 'CAPTCHA' in str(e):
+                    logger.info("MultiStrategy: CAPTCHA detected, switching to next strategy in 3 seconds...")
+                    time.sleep(3)
+                else:
+                    # For other errors, wait a bit longer
+                    logger.info("MultiStrategy: Waiting 5 seconds before trying next strategy...")
+                    time.sleep(5)
                 continue
 
         # All strategies failed

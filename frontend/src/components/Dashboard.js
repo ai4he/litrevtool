@@ -157,7 +157,11 @@ function Dashboard() {
     jobs.forEach(job => {
       // Always fetch papers for running and completed jobs
       if (job.status === 'running' || job.status === 'completed') {
-        if (!jobPapers[job.id]) {  // Only fetch if not already loaded
+        const cachedPapers = jobPapers[job.id];
+        const shouldFetch = !cachedPapers ||
+                          (job.total_papers_found && cachedPapers.length < job.total_papers_found);
+
+        if (shouldFetch) {
           fetchPapers(job.id);
         }
       }
@@ -172,6 +176,18 @@ function Dashboard() {
       }
     });
   }, [jobs, fetchScreenshot]);
+
+  // Auto-expand completed jobs with papers
+  useEffect(() => {
+    jobs.forEach(job => {
+      if (job.status === 'completed' && job.total_papers_found > 0) {
+        // Only auto-expand if not already explicitly collapsed by user
+        if (expandedJobs[job.id] === undefined) {
+          setExpandedJobs(prev => ({ ...prev, [job.id]: true }));
+        }
+      }
+    });
+  }, [jobs, expandedJobs]);
 
   const getStatusColor = (status) => {
     const colors = {

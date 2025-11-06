@@ -4,6 +4,7 @@ import csv
 from datetime import datetime
 from typing import Dict, List
 from sqlalchemy.orm import Session
+from celery.exceptions import SoftTimeLimitExceeded
 
 from app.tasks.celery_app import celery_app
 from app.db.session import SessionLocal
@@ -225,6 +226,16 @@ def run_search_job(self, job_id: str):
         except Exception as e:
             logger.error(f"Error sending email: {e}")
             # Don't fail the job if email fails
+
+    except SoftTimeLimitExceeded:
+        logger.error(f"Job {job_id} exceeded time limit (30 minutes)")
+
+        # Update job with timeout error
+        job.status = "failed"
+        job.error_message = "Job exceeded time limit (30 minutes). Try narrowing your search or reducing the year range."
+        job.status_message = "Failed: Timeout - job took too long to complete"
+        job.completed_at = datetime.utcnow()
+        db.commit()
 
     except Exception as e:
         logger.error(f"Error in search job {job_id}: {e}", exc_info=True)

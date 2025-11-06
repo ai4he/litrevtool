@@ -38,6 +38,8 @@ class GoogleScholarScraper:
         self.ua = UserAgent()
         self.request_count = 0
         self.last_request_time = 0
+        self.captcha_count = 0  # Track consecutive CAPTCHA hits
+        self.max_captcha_retries = 3  # Fail strategy after this many CAPTCHAs
 
         # Create screenshot directory if specified
         if self.screenshot_dir:
@@ -158,7 +160,6 @@ class GoogleScholarScraper:
             self.playwright.stop()
             self.playwright = None
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     def _search_page(self, query: str, start: int = 0, year_low: Optional[int] = None,
                      year_high: Optional[int] = None) -> str:
         """
@@ -221,12 +222,20 @@ class GoogleScholarScraper:
             # Check for CAPTCHA
             page_content = self.page.content()
             if "sorry" in self.page.url.lower() or "captcha" in page_content.lower():
-                logger.warning("CAPTCHA detected! Rotating circuit and waiting longer...")
+                self.captcha_count += 1
+                logger.warning(f"CAPTCHA detected! (count: {self.captcha_count}/{self.max_captcha_retries})")
                 # Capture screenshot of CAPTCHA page
                 self._capture_screenshot("CAPTCHA")
+
+                # If we've hit too many CAPTCHAs, fail this strategy immediately
+                if self.captcha_count >= self.max_captcha_retries:
+                    logger.error(f"Too many CAPTCHAs ({self.captcha_count}), failing Playwright strategy")
+                    raise Exception(f"CAPTCHA detected {self.captcha_count} times - strategy failed")
+
+                # Try rotating circuit and retry once more
                 if self.use_tor:
                     self._rotate_tor_circuit()
-                time.sleep(60)  # Wait longer and retry
+                time.sleep(30)  # Reduced wait time from 60 to 30 seconds
                 raise Exception("CAPTCHA detected")
 
             # Wait for results to load
@@ -237,6 +246,11 @@ class GoogleScholarScraper:
 
             # Capture screenshot after successful page load
             self._capture_screenshot(f"page_{start}")
+
+            # Reset CAPTCHA counter on successful page load
+            if self.captcha_count > 0:
+                logger.info(f"Successfully loaded page, resetting CAPTCHA counter from {self.captcha_count} to 0")
+                self.captcha_count = 0
 
             return page_content
 

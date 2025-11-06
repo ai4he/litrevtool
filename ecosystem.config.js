@@ -28,7 +28,7 @@ module.exports = {
       name: 'litrev-celery',
       cwd: '/home/ubuntu/litrevtool/backend',
       script: 'venv/bin/celery',
-      args: '-A app.tasks.celery_app worker --loglevel=info --concurrency=1 --max-memory-per-child=200000',
+      args: '-A app.tasks.celery_app worker --loglevel=info --concurrency=1 --max-memory-per-child=200000 --task-soft-time-limit=1800 --task-time-limit=2100',
       interpreter: 'none',
       instances: 1,
       autorestart: true,
