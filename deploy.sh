@@ -107,6 +107,9 @@ else
     print_success "Chrome/Chromium found"
 fi
 
+# Note about Tor
+print_info "Note: Tor proxy is NOT required. Scraper uses direct connection (use_tor=False by default)"
+
 echo ""
 echo "Step 2: Setting up Python backend..."
 echo "-----------------------------------"

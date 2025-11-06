@@ -250,14 +250,46 @@ Use Swagger UI at http://localhost:8000/docs for interactive API testing.
 - Database: `backend/litrevtool.db`
 - Python venv: `backend/venv/`
 
+## Debugging Commands
+
+Use these npm commands for troubleshooting:
+
+### Comprehensive Debugging
+```bash
+npm run debug              # Complete system overview: services, DB stats, errors, screenshots
+npm run debug:health       # Quick health check: services, API, Redis, disk, memory
+```
+
+### Job-Specific Debugging
+```bash
+npm run debug:jobs         # List all stuck/running jobs with details
+npm run debug:last-job     # Show detailed info about the most recent job
+npm run debug:reset-jobs   # Reset all stuck jobs to failed state
+```
+
+### Error Investigation
+```bash
+npm run debug:errors       # View recent Celery errors
+npm run debug:screenshots  # List recent browser screenshots
+npm run logs:celery        # Live Celery worker logs
+npm run logs:backend       # Live backend API logs
+```
+
+### System Recovery
+```bash
+npm run reset              # Full system reset (clears Redis, resets jobs, restarts services)
+npm restart                # Quick restart of all services
+```
+
 ## When Things Go Wrong
 
-1. **Always check logs first**: `npm run logs`
-2. **Full reset is safe**: `npm run reset` (preserves database and .env)
-3. **Backup before DB operations**: `cp backend/litrevtool.db backend/litrevtool.db.backup`
-4. **PM2 is your friend**: `pm2 status`, `pm2 monit`, `pm2 logs`
-5. **Redis issues**: `redis-cli FLUSHDB` clears stuck tasks
-6. **Port conflicts**: `npm run kill:port` kills processes on 3001/8000
+1. **Search not progressing?** → `npm run debug:jobs` to see job status, then `npm run debug:errors` for errors
+2. **Workers not responding?** → `npm run debug:health` then `npm restart`
+3. **Stuck jobs?** → `npm run debug:reset-jobs` to reset them to failed
+4. **Need full picture?** → `npm run debug` shows everything at once
+5. **Redis issues?** → `redis-cli FLUSHDB` clears stuck tasks, then `npm restart`
+6. **Port conflicts?** → `npm run kill:port` kills processes on 3001/8000
+7. **Complete failure?** → `npm run reset` (preserves database and .env)
 
 ## Additional Documentation
 
