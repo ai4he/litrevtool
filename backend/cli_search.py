@@ -368,6 +368,29 @@ def display_summary(
 
     print()
 
+    # Display PRISMA metrics if available
+    if job.prisma_metrics:
+        print_header("PRISMA Methodology Metrics")
+        prisma = job.prisma_metrics
+
+        print(f"{Colors.BOLD}Identification:{Colors.ENDC}")
+        print(f"  Records identified:              {prisma['identification']['records_identified']}")
+
+        print(f"\n{Colors.BOLD}Screening:{Colors.ENDC}")
+        print(f"  Duplicates removed:              {prisma['screening']['records_excluded_duplicates']}")
+        print(f"  Records after deduplication:     {prisma['screening']['records_after_duplicates_removed']}")
+        print(f"  Records screened:                {prisma['screening']['records_screened']}")
+
+        if prisma['eligibility']['full_text_assessed'] > 0:
+            print(f"\n{Colors.BOLD}Eligibility:{Colors.ENDC}")
+            print(f"  Papers assessed (semantic):      {prisma['eligibility']['full_text_assessed']}")
+            print(f"  Papers excluded (semantic):      {prisma['eligibility']['full_text_excluded_semantic']}")
+
+        print(f"\n{Colors.BOLD}Included:{Colors.ENDC}")
+        print(f"  {Colors.OKGREEN}Studies included in results:     {prisma['included']['studies_included']}{Colors.ENDC}")
+
+        print()
+
     # Display strategy statistics if available
     print_info("Multi-strategy scraper used - check logs for which strategy succeeded")
     print_info("Use 'npm run logs:celery' to see detailed scraping logs")

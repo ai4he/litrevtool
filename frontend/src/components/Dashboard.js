@@ -472,9 +472,44 @@ function Dashboard() {
                   )}
 
                   {job.status === 'completed' && (
-                    <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
-                      Found {job.total_papers_found} papers
-                    </Typography>
+                    <>
+                      <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+                        Found {job.total_papers_found} papers
+                      </Typography>
+
+                      {/* PRISMA Metrics */}
+                      {job.prisma_metrics && (
+                        <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1, border: '1px solid', borderColor: 'success.light' }}>
+                          <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                            📊 PRISMA Methodology Metrics
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>Identified:</strong> {job.prisma_metrics.identification.records_identified} records
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>Duplicates Removed:</strong> {job.prisma_metrics.screening.records_excluded_duplicates}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>After Deduplication:</strong> {job.prisma_metrics.screening.records_after_duplicates_removed}
+                            </Typography>
+                            {job.prisma_metrics.eligibility.full_text_assessed > 0 && (
+                              <>
+                                <Typography variant="caption" color="textSecondary">
+                                  <strong>Semantic Assessed:</strong> {job.prisma_metrics.eligibility.full_text_assessed}
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                  <strong>Semantic Excluded:</strong> {job.prisma_metrics.eligibility.full_text_excluded_semantic}
+                                </Typography>
+                              </>
+                            )}
+                            <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ mt: 0.5 }}>
+                              <strong>Final Included:</strong> {job.prisma_metrics.included.studies_included} papers
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </>
                   )}
 
                   {job.status === 'failed' && job.error_message && (

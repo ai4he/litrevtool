@@ -238,6 +238,36 @@ The CSV file contains:
 
 **Note**: The `Semantic_Score` column shows whether a paper passed AI-powered semantic filtering (1 = passed, 0 = not passed or no filtering applied). Use `--semantic-include` and `--semantic-exclude` flags to enable semantic filtering in CLI searches.
 
+### PRISMA Methodology Metrics
+
+The CLI automatically displays PRISMA (Preferred Reporting Items for Systematic Reviews and Meta-Analyses) metrics at the end of each search:
+
+```
+PRISMA Methodology Metrics
+
+Identification:
+  Records identified:              1245
+
+Screening:
+  Duplicates removed:              45
+  Records after deduplication:     1200
+  Records screened:                1200
+
+Eligibility:
+  Papers assessed (semantic):      1200
+  Papers excluded (semantic):      350
+
+Included:
+  Studies included in results:     850
+```
+
+These metrics provide transparency for systematic literature reviews and help you report your methodology according to PRISMA standards. The metrics track:
+
+- **Identification**: Total papers found by the scraper
+- **Screening**: Duplicates detected and removed
+- **Eligibility**: Papers assessed and filtered by semantic criteria (if enabled)
+- **Included**: Final paper count in your results
+
 ## Monitoring Progress
 
 ### Watch CLI Output

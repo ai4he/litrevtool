@@ -45,6 +45,9 @@ class SearchJob(Base):
     # Results
     csv_file_path = Column(String, nullable=True)
 
+    # PRISMA methodology metrics
+    prisma_metrics = Column(JSON, nullable=True)  # Tracks systematic review stages
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

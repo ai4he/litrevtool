@@ -52,6 +52,26 @@ def run_search_job(self, job_id: str):
 
         logger.info(f"Starting search job {job_id}")
 
+        # Initialize PRISMA metrics
+        prisma_metrics = {
+            'identification': {
+                'records_identified': 0,  # Total from scraping
+                'records_from_database': 0  # Same as above (Google Scholar)
+            },
+            'screening': {
+                'records_after_duplicates_removed': 0,
+                'records_screened': 0,
+                'records_excluded_duplicates': 0
+            },
+            'eligibility': {
+                'full_text_assessed': 0,  # Papers sent to semantic filter
+                'full_text_excluded_semantic': 0  # Failed semantic filter
+            },
+            'included': {
+                'studies_included': 0  # Final papers
+            }
+        }
+
         # Check if we're resuming from a checkpoint
         start_year = job.start_year
         if job.last_checkpoint and job.last_checkpoint.get('last_year_completed'):
@@ -75,6 +95,7 @@ def run_search_job(self, job_id: str):
 
         # Track already saved paper titles to avoid duplicates
         saved_paper_titles = set()
+        duplicate_count = 0
 
         # Progress callback to update database and save papers incrementally
         def update_progress(current: int, estimated_total: int):
@@ -90,11 +111,13 @@ def run_search_job(self, job_id: str):
 
         # New callback to save papers incrementally
         def save_papers_callback(papers_batch: list):
+            nonlocal duplicate_count
             try:
                 for paper_data in papers_batch:
                     title = paper_data.get('title', '')
                     # Skip if already saved
                     if title in saved_paper_titles:
+                        duplicate_count += 1
                         continue
 
                     saved_paper_titles.add(title)
@@ -130,6 +153,19 @@ def run_search_job(self, job_id: str):
 
         logger.info(f"Scraping complete: {len(papers)} papers found")
         job.status_message = f"Scraping complete. Found {len(papers)} papers."
+
+        # Update PRISMA metrics after scraping (Identification stage)
+        total_scraped = len(papers) + duplicate_count
+        prisma_metrics['identification']['records_identified'] = total_scraped
+        prisma_metrics['identification']['records_from_database'] = total_scraped
+
+        # Update screening metrics
+        prisma_metrics['screening']['records_excluded_duplicates'] = duplicate_count
+        prisma_metrics['screening']['records_after_duplicates_removed'] = len(papers)
+        prisma_metrics['screening']['records_screened'] = len(papers)
+
+        logger.info(f"PRISMA - Identified: {total_scraped}, After duplicates removed: {len(papers)}")
+
         db.commit()
 
         # Apply semantic filtering if configured
@@ -146,6 +182,9 @@ def run_search_job(self, job_id: str):
             inclusion_criteria = job.semantic_criteria.get('inclusion')
             exclusion_criteria = job.semantic_criteria.get('exclusion')
 
+            # Store count before semantic filtering for PRISMA
+            papers_before_semantic = len(papers)
+
             papers = semantic_filter.filter_papers(
                 papers,
                 inclusion_criteria=inclusion_criteria,
@@ -153,8 +192,14 @@ def run_search_job(self, job_id: str):
                 batch_size=batch_size
             )
 
-            logger.info(f"After semantic filtering: {len(papers)} papers remain")
-            job.status_message = f"Semantic filtering complete. {len(papers)} papers passed criteria."
+            # Update PRISMA eligibility metrics
+            papers_after_semantic = len(papers)
+            prisma_metrics['eligibility']['full_text_assessed'] = papers_before_semantic
+            prisma_metrics['eligibility']['full_text_excluded_semantic'] = papers_before_semantic - papers_after_semantic
+
+            logger.info(f"After semantic filtering: {papers_after_semantic} papers remain")
+            logger.info(f"PRISMA - Assessed: {papers_before_semantic}, Excluded by semantic filter: {papers_before_semantic - papers_after_semantic}")
+            job.status_message = f"Semantic filtering complete. {papers_after_semantic} papers passed criteria."
             db.commit()
 
         # Save any remaining papers to database (ones not saved incrementally due to semantic filtering)
@@ -198,6 +243,14 @@ def run_search_job(self, job_id: str):
         db.commit()
         _export_to_csv(papers, csv_path)
 
+        # Finalize PRISMA metrics (Included stage)
+        prisma_metrics['included']['studies_included'] = len(papers)
+
+        logger.info(f"PRISMA Summary - Total identified: {prisma_metrics['identification']['records_identified']}, "
+                   f"After duplicates: {prisma_metrics['screening']['records_after_duplicates_removed']}, "
+                   f"Semantic assessed: {prisma_metrics['eligibility']['full_text_assessed']}, "
+                   f"Final included: {prisma_metrics['included']['studies_included']}")
+
         # Update job
         job.status = "completed"
         job.status_message = f"Job completed successfully! {len(papers)} papers found."
@@ -206,6 +259,7 @@ def run_search_job(self, job_id: str):
         job.papers_processed = len(papers)
         job.progress = 100.0
         job.csv_file_path = csv_path
+        job.prisma_metrics = prisma_metrics  # Save PRISMA metrics
         job.last_checkpoint = None  # Clear checkpoint on success
         db.commit()
 
