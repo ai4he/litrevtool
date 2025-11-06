@@ -153,8 +153,17 @@ Configure at: https://console.cloud.google.com/apis/credentials
 
 ### Models
 - **User**: id, email, name, picture, google_id, created_at
-- **SearchJob**: id, user_id, name, search_query, year_from, year_to, include_keywords, exclude_keywords, semantic_criteria, semantic_batch_mode, prisma_metrics, status (pending/running/completed/failed), papers_collected, status_message, celery_task_id, csv_file_path, created_at, started_at, completed_at
+- **SearchJob**: id, user_id, name, search_query, year_from, year_to, include_keywords, exclude_keywords, semantic_criteria, semantic_batch_mode, prisma_metrics, prisma_diagram_path, latex_file_path, bibtex_file_path, status (pending/running/completed/failed), papers_collected, status_message, celery_task_id, csv_file_path, created_at, started_at, completed_at
 - **Paper**: id, job_id, title, authors, year, source, publisher, citations, abstract, url, semantic_score, created_at
+
+### Output Files Generated
+LitRevTool automatically generates multiple publication-ready outputs for each completed search:
+- **CSV File** (`csv_file_path`): Structured data with all papers, includes Semantic_Score column
+- **PRISMA Diagram** (`prisma_diagram_path`): SVG flow diagram following PRISMA 2020 standards
+- **LaTeX Document** (`latex_file_path`): Complete systematic literature review in LaTeX format with AI-generated content
+- **BibTeX File** (`bibtex_file_path`): All paper citations in BibTeX format for easy reference management
+
+These files are saved to `backend/uploads/` and available for download through both web UI and CLI.
 
 ### PRISMA Methodology Tracking
 LitRevTool automatically tracks systematic review metrics following the PRISMA (Preferred Reporting Items for Systematic Reviews and Meta-Analyses) methodology. The `prisma_metrics` field stores:
