@@ -280,19 +280,20 @@ class RequestsStrategy(ScraperStrategy):
     and ethical rate limiting based on successful GitHub projects.
     """
 
-    def __init__(self):
+    def __init__(self, use_tor: bool = True):
         super().__init__("Requests")
         self.ua = UserAgent()
         self.session = None
         self.request_count = 0
         self.last_request_time = 0
+        self.use_tor = use_tor
 
     def is_available(self) -> bool:
         """Requests strategy is always available."""
         return True
 
     def _init_session(self):
-        """Initialize requests session with headers."""
+        """Initialize requests session with headers and Tor proxy if enabled."""
         if self.session:
             return
 
@@ -305,6 +306,18 @@ class RequestsStrategy(ScraperStrategy):
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
         })
+
+        # Add Tor proxy if enabled
+        if self.use_tor:
+            try:
+                self.session.proxies = {
+                    'http': 'socks5://127.0.0.1:9050',
+                    'https': 'socks5://127.0.0.1:9050'
+                }
+                logger.info("Requests: Using Tor proxy on 127.0.0.1:9050")
+            except Exception as e:
+                logger.warning(f"Requests: Could not configure Tor proxy: {e}")
+                self.use_tor = False
 
     def _get_user_agent(self) -> str:
         """Get a rotating user agent."""
@@ -643,7 +656,7 @@ class MultiStrategyScholarScraper:
             self.strategies['scholarly'] = ScholarlyStrategy(use_tor=use_tor)
 
         # Requests (FALLBACK 1)
-        self.strategies['requests'] = RequestsStrategy()
+        self.strategies['requests'] = RequestsStrategy(use_tor=use_tor)
 
         # Playwright (FALLBACK 2)
         self.strategies['playwright'] = PlaywrightStrategy(
