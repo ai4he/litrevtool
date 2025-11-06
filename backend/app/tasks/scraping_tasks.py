@@ -20,6 +20,11 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
+class JobPausedException(Exception):
+    """Exception raised when a job is paused by the user."""
+    pass
+
+
 @celery_app.task(bind=True, max_retries=3)
 def run_search_job(self, job_id: str):
     """
@@ -99,15 +104,28 @@ def run_search_job(self, job_id: str):
         saved_paper_titles = set()
         duplicate_count = 0
 
+        # Helper function to check if job is paused
+        def check_if_paused():
+            """Check if the job has been paused by the user."""
+            db.refresh(job)
+            if job.status == "paused":
+                logger.info(f"Job {job_id} has been paused by user")
+                raise JobPausedException("Job paused by user")
+
         # Progress callback to update database and save papers incrementally
         def update_progress(current: int, estimated_total: int):
             try:
+                # Check if job is paused
+                check_if_paused()
+
                 progress = min((current / max(estimated_total, 1)) * 100, 100)
                 job.progress = progress
                 job.papers_processed = current
                 job.status_message = f"Collecting papers... {current} found so far"
                 db.commit()
                 logger.info(f"Job {job_id}: {progress:.1f}% complete ({current} papers)")
+            except JobPausedException:
+                raise
             except Exception as e:
                 logger.error(f"Error updating progress: {e}")
 
@@ -115,6 +133,9 @@ def run_search_job(self, job_id: str):
         def save_papers_callback(papers_batch: list):
             nonlocal duplicate_count
             try:
+                # Check if job is paused
+                check_if_paused()
+
                 for paper_data in papers_batch:
                     title = paper_data.get('title', '')
                     # Skip if already saved
@@ -138,6 +159,8 @@ def run_search_job(self, job_id: str):
                     db.add(paper)
                 db.commit()
                 logger.info(f"Saved {len(papers_batch)} papers to database")
+            except JobPausedException:
+                raise
             except Exception as e:
                 logger.error(f"Error saving papers incrementally: {e}")
                 db.rollback()
@@ -340,6 +363,28 @@ def run_search_job(self, job_id: str):
             logger.error(f"Error sending email: {e}")
             # Don't fail the job if email fails
 
+    except JobPausedException:
+        logger.info(f"Job {job_id} paused by user")
+
+        # Job is already in "paused" status from check_if_paused
+        # Save checkpoint for resumption
+        job.status_message = "Job paused by user. Click Resume to continue."
+
+        if job.end_year and job.start_year:
+            # Estimate last completed year based on progress
+            if job.progress > 0:
+                year_range = job.end_year - job.start_year + 1
+                years_completed = int((job.progress / 100.0) * year_range)
+                last_year = job.start_year + years_completed - 1
+
+                job.last_checkpoint = {
+                    'last_year_completed': last_year,
+                    'papers_collected': job.papers_processed,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'duplicate_count': duplicate_count
+                }
+        db.commit()
+
     except SoftTimeLimitExceeded:
         logger.error(f"Job {job_id} exceeded time limit (30 minutes)")
 
@@ -436,7 +481,7 @@ def _export_to_csv(papers: List[Dict], file_path: str):
 @celery_app.task
 def resume_failed_job(job_id: str):
     """
-    Resume a failed job from its last checkpoint.
+    Resume a failed or paused job from its last checkpoint.
 
     Args:
         job_id: UUID of the SearchJob to resume
@@ -449,13 +494,14 @@ def resume_failed_job(job_id: str):
             logger.error(f"Job {job_id} not found")
             return
 
-        if job.status != "failed":
-            logger.warning(f"Job {job_id} is not in failed state")
+        if job.status not in ["failed", "paused"]:
+            logger.warning(f"Job {job_id} is not in failed or paused state (current: {job.status})")
             return
 
         # Reset job status
         job.status = "pending"
         job.error_message = None
+        job.status_message = "Resuming job from last checkpoint..."
         db.commit()
 
         # Start the job again (it will resume from checkpoint)

@@ -24,6 +24,7 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   PlayArrow as PlayArrowIcon,
+  Pause as PauseIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
@@ -79,6 +80,16 @@ function Dashboard() {
         console.error('Error deleting job:', error);
         setError('Failed to delete job');
       }
+    }
+  };
+
+  const handlePauseJob = async (jobId) => {
+    try {
+      await jobsAPI.pauseJob(jobId);
+      fetchJobs();
+    } catch (error) {
+      console.error('Error pausing job:', error);
+      setError('Failed to pause job');
     }
   };
 
@@ -560,6 +571,12 @@ function Dashboard() {
                     </>
                   )}
 
+                  {job.status === 'paused' && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {job.status_message || 'Job is paused. Click Resume to continue from where it left off.'}
+                    </Alert>
+                  )}
+
                   {job.status === 'failed' && job.error_message && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                       {job.error_message}
@@ -567,6 +584,18 @@ function Dashboard() {
                   )}
 
                   <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    {job.status === 'running' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<PauseIcon />}
+                        onClick={() => handlePauseJob(job.id)}
+                      >
+                        Pause
+                      </Button>
+                    )}
+
                     {job.status === 'completed' && (
                       <>
                         <Button
@@ -613,15 +642,16 @@ function Dashboard() {
                       </>
                     )}
 
-                    {job.status === 'failed' && (
-                      <IconButton
+                    {(job.status === 'failed' || job.status === 'paused') && (
+                      <Button
                         size="small"
+                        variant="outlined"
                         color="primary"
+                        startIcon={<PlayArrowIcon />}
                         onClick={() => handleResumeJob(job.id)}
-                        title="Resume job"
                       >
-                        <PlayArrowIcon />
-                      </IconButton>
+                        Resume
+                      </Button>
                     )}
 
                     {(job.status === 'running' || job.status === 'completed') && (

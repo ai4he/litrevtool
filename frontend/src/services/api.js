@@ -31,6 +31,7 @@ export const jobsAPI = {
   getJob: (jobId) => api.get(`/jobs/${jobId}`),
   updateJob: (jobId, data) => api.patch(`/jobs/${jobId}`, data),
   deleteJob: (jobId) => api.delete(`/jobs/${jobId}`),
+  pauseJob: (jobId) => api.post(`/jobs/${jobId}/pause`),
   resumeJob: (jobId) => api.post(`/jobs/${jobId}/resume`),
   getPapers: (jobId, skip = 0, limit = 50) => api.get(`/jobs/${jobId}/papers`, { params: { skip, limit } }),
   downloadResults: (jobId) => {

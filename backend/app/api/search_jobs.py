@@ -215,6 +215,49 @@ async def delete_search_job(
     db.commit()
 
 
+@router.post("/{job_id}/pause", response_model=SearchJob)
+async def pause_search_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Pause a running search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        Paused search job
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "running":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only running jobs can be paused"
+        )
+
+    # Update job status to paused - the Celery task will detect this and stop gracefully
+    job.status = "paused"
+    job.status_message = "Pausing job..."
+    db.commit()
+    db.refresh(job)
+
+    return job
+
+
 @router.post("/{job_id}/resume", response_model=SearchJob)
 async def resume_search_job(
     job_id: str,
@@ -222,7 +265,7 @@ async def resume_search_job(
     db: Session = Depends(get_db)
 ):
     """
-    Resume a failed search job.
+    Resume a failed or paused search job.
 
     Args:
         job_id: Job UUID
@@ -243,10 +286,10 @@ async def resume_search_job(
             detail="Search job not found"
         )
 
-    if job.status != "failed":
+    if job.status not in ["failed", "paused"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only failed jobs can be resumed"
+            detail="Only failed or paused jobs can be resumed"
         )
 
     # Start the resume task
