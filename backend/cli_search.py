@@ -31,6 +31,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.db.session import SessionLocal
 from app.models import SearchJob, Paper, User
 from app.tasks.scraping_tasks import run_search_job
+from app.services.prisma_diagram import generate_prisma_diagram
+from app.services.latex_generator import generate_systematic_review
 from app.core.config import settings
 import uuid
 
@@ -161,7 +163,10 @@ def create_search_job(
     start_year: Optional[int],
     end_year: Optional[int],
     max_results: Optional[int],
-    output_file: str
+    output_file: str,
+    semantic_include: Optional[str] = None,
+    semantic_exclude: Optional[str] = None,
+    semantic_batch_mode: bool = True
 ) -> SearchJob:
     """Create a search job in the database."""
 
@@ -169,6 +174,14 @@ def create_search_job(
     job_name = f"CLI Search: {' '.join(include_keywords[:3])}"
     if start_year and end_year:
         job_name += f" ({start_year}-{end_year})"
+
+    # Prepare semantic criteria if provided
+    semantic_criteria = None
+    if semantic_include or semantic_exclude:
+        semantic_criteria = {
+            'inclusion': semantic_include,
+            'exclusion': semantic_exclude
+        }
 
     # Create job
     job = SearchJob(
@@ -179,6 +192,8 @@ def create_search_job(
         keywords_exclude=exclude_keywords,
         start_year=start_year,
         end_year=end_year,
+        semantic_criteria=semantic_criteria,
+        semantic_batch_mode=semantic_batch_mode,
         status="pending",
         status_message="Job created via CLI"
     )
@@ -289,7 +304,7 @@ def export_results(
         print_warning("No papers found to export")
         # Create empty CSV with headers
         with open(output_file, 'w') as f:
-            f.write("Title,Authors,Year,Source,Publisher,Citations,Abstract,URL\n")
+            f.write("Title,Authors,Year,Source,Publisher,Citations,Abstract,URL,Semantic_Score\n")
         print_info(f"Created empty CSV: {output_file}")
         return True
 
@@ -299,11 +314,14 @@ def export_results(
     try:
         with open(output_file, 'w', newline='', encoding='utf-8') as f:
             fieldnames = ['Title', 'Authors', 'Year', 'Source', 'Publisher',
-                         'Citations', 'Abstract', 'URL']
+                         'Citations', 'Abstract', 'URL', 'Semantic_Score']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
             for paper in papers:
+                # Convert semantic_score to 1 or 0 (None means no semantic filtering was applied, treat as 0)
+                semantic_score = 1 if paper.semantic_score == 1 else 0
+
                 writer.writerow({
                     'Title': paper.title or '',
                     'Authors': paper.authors or '',
@@ -312,7 +330,8 @@ def export_results(
                     'Publisher': paper.publisher or '',
                     'Citations': paper.citations or 0,
                     'Abstract': paper.abstract or '',
-                    'URL': paper.url or ''
+                    'URL': paper.url or '',
+                    'Semantic_Score': semantic_score
                 })
 
         file_size = os.path.getsize(output_file)
@@ -350,6 +369,83 @@ def display_summary(
         print(f"  Server CSV:      {job.csv_file_path}")
 
     print()
+
+    # Display PRISMA metrics if available
+    if job.prisma_metrics:
+        print_header("PRISMA Methodology Metrics")
+        prisma = job.prisma_metrics
+
+        print(f"{Colors.BOLD}Identification:{Colors.ENDC}")
+        print(f"  Records identified:              {prisma['identification']['records_identified']}")
+
+        print(f"\n{Colors.BOLD}Screening:{Colors.ENDC}")
+        print(f"  Duplicates removed:              {prisma['screening']['records_excluded_duplicates']}")
+        print(f"  Records after deduplication:     {prisma['screening']['records_after_duplicates_removed']}")
+        print(f"  Records screened:                {prisma['screening']['records_screened']}")
+
+        if prisma['eligibility']['full_text_assessed'] > 0:
+            print(f"\n{Colors.BOLD}Eligibility:{Colors.ENDC}")
+            print(f"  Papers assessed (semantic):      {prisma['eligibility']['full_text_assessed']}")
+            print(f"  Papers excluded (semantic):      {prisma['eligibility']['full_text_excluded_semantic']}")
+
+        print(f"\n{Colors.BOLD}Included:{Colors.ENDC}")
+        print(f"  {Colors.OKGREEN}Studies included in results:     {prisma['included']['studies_included']}{Colors.ENDC}")
+
+        print()
+
+        # Generate and save PRISMA diagram
+        try:
+            diagram_filename = output_file.rsplit('.', 1)[0] + '_PRISMA.svg'
+            generate_prisma_diagram(prisma, diagram_filename)
+            print_success(f"PRISMA flow diagram saved: {diagram_filename}")
+            print()
+        except Exception as e:
+            print_warning(f"Could not generate PRISMA diagram: {e}")
+            print()
+
+        # Generate LaTeX systematic review and BibTeX
+        try:
+            latex_filename = output_file.rsplit('.', 1)[0] + '_Review.tex'
+            bibtex_filename = output_file.rsplit('.', 1)[0] + '_References.bib'
+
+            # Get papers from database
+            papers_data = db.query(Paper).filter(Paper.search_job_id == job_id).all()
+            papers_list = [
+                {
+                    'title': p.title,
+                    'authors': p.authors,
+                    'year': p.year,
+                    'abstract': p.abstract,
+                    'source': p.source,
+                    'publisher': p.publisher,
+                    'url': p.url,
+                    'citations': p.citations
+                }
+                for p in papers_data
+            ]
+
+            search_criteria = {
+                'keywords_include': job.keywords_include,
+                'keywords_exclude': job.keywords_exclude,
+                'start_year': job.start_year,
+                'end_year': job.end_year
+            }
+
+            generate_systematic_review(
+                papers=papers_list,
+                search_criteria=search_criteria,
+                prisma_metrics=prisma,
+                latex_output_path=latex_filename,
+                bibtex_output_path=bibtex_filename,
+                title=f"Systematic Literature Review: {job.name}"
+            )
+
+            print_success(f"LaTeX document saved: {latex_filename}")
+            print_success(f"BibTeX references saved: {bibtex_filename}")
+            print()
+        except Exception as e:
+            print_warning(f"Could not generate LaTeX/BibTeX: {e}")
+            print()
 
     # Display strategy statistics if available
     print_info("Multi-strategy scraper used - check logs for which strategy succeeded")
@@ -430,6 +526,24 @@ Note: The scraper will run to completion even if --max-results is reached.
         help='Create job and exit without waiting for completion'
     )
 
+    parser.add_argument(
+        '--semantic-include',
+        type=str,
+        help='Semantic inclusion criteria (e.g., "papers with practical applications")'
+    )
+
+    parser.add_argument(
+        '--semantic-exclude',
+        type=str,
+        help='Semantic exclusion criteria (e.g., "purely theoretical papers")'
+    )
+
+    parser.add_argument(
+        '--semantic-individual',
+        action='store_true',
+        help='Analyze papers individually instead of in batches (slower, more API calls)'
+    )
+
     args = parser.parse_args()
 
     # Validate year range
@@ -456,6 +570,14 @@ Note: The scraper will run to completion even if --max-results is reached.
         print(f"  Year Range:       {year_range}")
     if args.max_results:
         print(f"  Max Results:      {args.max_results}")
+    if args.semantic_include or args.semantic_exclude:
+        print(f"\n  {Colors.BOLD}Semantic Filtering Enabled:{Colors.ENDC}")
+        if args.semantic_include:
+            print(f"    Include:        {args.semantic_include}")
+        if args.semantic_exclude:
+            print(f"    Exclude:        {args.semantic_exclude}")
+        mode = "Individual" if args.semantic_individual else "Batch"
+        print(f"    Mode:           {mode}")
 
     # Generate output filename if not provided
     if not args.output:
@@ -489,7 +611,10 @@ Note: The scraper will run to completion even if --max-results is reached.
             start_year=args.start_year,
             end_year=args.end_year,
             max_results=args.max_results,
-            output_file=args.output
+            output_file=args.output,
+            semantic_include=args.semantic_include if hasattr(args, 'semantic_include') else None,
+            semantic_exclude=args.semantic_exclude if hasattr(args, 'semantic_exclude') else None,
+            semantic_batch_mode=not args.semantic_individual if hasattr(args, 'semantic_individual') else True
         )
 
         print_success(f"Job created: {job.id}")

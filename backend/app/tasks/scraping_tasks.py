@@ -13,9 +13,16 @@ from app.services.scholar_scraper import GoogleScholarScraper
 from app.services.multi_strategy_scraper import MultiStrategyScholarScraper
 from app.services.semantic_filter import SemanticFilter
 from app.services.email_service import EmailService
+from app.services.prisma_diagram import generate_prisma_diagram
+from app.services.latex_generator import generate_systematic_review
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class JobPausedException(Exception):
+    """Exception raised when a job is paused by the user."""
+    pass
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -52,6 +59,26 @@ def run_search_job(self, job_id: str):
 
         logger.info(f"Starting search job {job_id}")
 
+        # Initialize PRISMA metrics
+        prisma_metrics = {
+            'identification': {
+                'records_identified': 0,  # Total from scraping
+                'records_from_database': 0  # Same as above (Google Scholar)
+            },
+            'screening': {
+                'records_after_duplicates_removed': 0,
+                'records_screened': 0,
+                'records_excluded_duplicates': 0
+            },
+            'eligibility': {
+                'full_text_assessed': 0,  # Papers sent to semantic filter
+                'full_text_excluded_semantic': 0  # Failed semantic filter
+            },
+            'included': {
+                'studies_included': 0  # Final papers
+            }
+        }
+
         # Check if we're resuming from a checkpoint
         start_year = job.start_year
         if job.last_checkpoint and job.last_checkpoint.get('last_year_completed'):
@@ -75,26 +102,45 @@ def run_search_job(self, job_id: str):
 
         # Track already saved paper titles to avoid duplicates
         saved_paper_titles = set()
+        duplicate_count = 0
+
+        # Helper function to check if job is paused
+        def check_if_paused():
+            """Check if the job has been paused by the user."""
+            db.refresh(job)
+            if job.status == "paused":
+                logger.info(f"Job {job_id} has been paused by user")
+                raise JobPausedException("Job paused by user")
 
         # Progress callback to update database and save papers incrementally
         def update_progress(current: int, estimated_total: int):
             try:
+                # Check if job is paused
+                check_if_paused()
+
                 progress = min((current / max(estimated_total, 1)) * 100, 100)
                 job.progress = progress
                 job.papers_processed = current
                 job.status_message = f"Collecting papers... {current} found so far"
                 db.commit()
                 logger.info(f"Job {job_id}: {progress:.1f}% complete ({current} papers)")
+            except JobPausedException:
+                raise
             except Exception as e:
                 logger.error(f"Error updating progress: {e}")
 
         # New callback to save papers incrementally
         def save_papers_callback(papers_batch: list):
+            nonlocal duplicate_count
             try:
+                # Check if job is paused
+                check_if_paused()
+
                 for paper_data in papers_batch:
                     title = paper_data.get('title', '')
                     # Skip if already saved
                     if title in saved_paper_titles:
+                        duplicate_count += 1
                         continue
 
                     saved_paper_titles.add(title)
@@ -113,6 +159,8 @@ def run_search_job(self, job_id: str):
                     db.add(paper)
                 db.commit()
                 logger.info(f"Saved {len(papers_batch)} papers to database")
+            except JobPausedException:
+                raise
             except Exception as e:
                 logger.error(f"Error saving papers incrementally: {e}")
                 db.rollback()
@@ -130,26 +178,53 @@ def run_search_job(self, job_id: str):
 
         logger.info(f"Scraping complete: {len(papers)} papers found")
         job.status_message = f"Scraping complete. Found {len(papers)} papers."
+
+        # Update PRISMA metrics after scraping (Identification stage)
+        total_scraped = len(papers) + duplicate_count
+        prisma_metrics['identification']['records_identified'] = total_scraped
+        prisma_metrics['identification']['records_from_database'] = total_scraped
+
+        # Update screening metrics
+        prisma_metrics['screening']['records_excluded_duplicates'] = duplicate_count
+        prisma_metrics['screening']['records_after_duplicates_removed'] = len(papers)
+        prisma_metrics['screening']['records_screened'] = len(papers)
+
+        logger.info(f"PRISMA - Identified: {total_scraped}, After duplicates removed: {len(papers)}")
+
         db.commit()
 
         # Apply semantic filtering if configured
         if job.semantic_criteria:
-            logger.info("Applying semantic filtering...")
-            job.status_message = "Applying semantic filtering to papers..."
+            # Determine batch size based on batch mode setting
+            batch_size = 10 if job.semantic_batch_mode else 1
+            mode_str = "batch mode" if job.semantic_batch_mode else "individual mode"
+
+            logger.info(f"Applying semantic filtering in {mode_str} (batch_size={batch_size})...")
+            job.status_message = f"Applying semantic filtering to papers ({mode_str})..."
             db.commit()
             semantic_filter = SemanticFilter()
 
             inclusion_criteria = job.semantic_criteria.get('inclusion')
             exclusion_criteria = job.semantic_criteria.get('exclusion')
 
+            # Store count before semantic filtering for PRISMA
+            papers_before_semantic = len(papers)
+
             papers = semantic_filter.filter_papers(
                 papers,
                 inclusion_criteria=inclusion_criteria,
-                exclusion_criteria=exclusion_criteria
+                exclusion_criteria=exclusion_criteria,
+                batch_size=batch_size
             )
 
-            logger.info(f"After semantic filtering: {len(papers)} papers remain")
-            job.status_message = f"Semantic filtering complete. {len(papers)} papers passed criteria."
+            # Update PRISMA eligibility metrics
+            papers_after_semantic = len(papers)
+            prisma_metrics['eligibility']['full_text_assessed'] = papers_before_semantic
+            prisma_metrics['eligibility']['full_text_excluded_semantic'] = papers_before_semantic - papers_after_semantic
+
+            logger.info(f"After semantic filtering: {papers_after_semantic} papers remain")
+            logger.info(f"PRISMA - Assessed: {papers_before_semantic}, Excluded by semantic filter: {papers_before_semantic - papers_after_semantic}")
+            job.status_message = f"Semantic filtering complete. {papers_after_semantic} papers passed criteria."
             db.commit()
 
         # Save any remaining papers to database (ones not saved incrementally due to semantic filtering)
@@ -193,6 +268,63 @@ def run_search_job(self, job_id: str):
         db.commit()
         _export_to_csv(papers, csv_path)
 
+        # Finalize PRISMA metrics (Included stage)
+        prisma_metrics['included']['studies_included'] = len(papers)
+
+        logger.info(f"PRISMA Summary - Total identified: {prisma_metrics['identification']['records_identified']}, "
+                   f"After duplicates: {prisma_metrics['screening']['records_after_duplicates_removed']}, "
+                   f"Semantic assessed: {prisma_metrics['eligibility']['full_text_assessed']}, "
+                   f"Final included: {prisma_metrics['included']['studies_included']}")
+
+        # Generate PRISMA flow diagram
+        diagram_filename = f"prisma_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.svg"
+        diagram_path = os.path.join(settings.UPLOAD_DIR, diagram_filename)
+        try:
+            logger.info("Generating PRISMA flow diagram...")
+            job.status_message = "Generating PRISMA flow diagram..."
+            db.commit()
+            generate_prisma_diagram(prisma_metrics, diagram_path)
+            logger.info(f"PRISMA diagram generated: {diagram_path}")
+        except Exception as e:
+            logger.error(f"Error generating PRISMA diagram: {e}")
+            diagram_path = None  # Don't fail the job if diagram generation fails
+
+        # Generate LaTeX systematic review and BibTeX
+        latex_filename = f"review_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tex"
+        latex_path = os.path.join(settings.UPLOAD_DIR, latex_filename)
+        bibtex_filename = f"references_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bib"
+        bibtex_path = os.path.join(settings.UPLOAD_DIR, bibtex_filename)
+
+        try:
+            logger.info("Generating LaTeX systematic review document...")
+            job.status_message = "Generating systematic review document..."
+            db.commit()
+
+            # Prepare search criteria for document
+            search_criteria = {
+                'keywords_include': job.keywords_include,
+                'keywords_exclude': job.keywords_exclude,
+                'start_year': job.start_year,
+                'end_year': job.end_year
+            }
+
+            # Generate both LaTeX and BibTeX
+            generate_systematic_review(
+                papers=papers,
+                search_criteria=search_criteria,
+                prisma_metrics=prisma_metrics,
+                latex_output_path=latex_path,
+                bibtex_output_path=bibtex_path,
+                title=f"Systematic Literature Review: {job.name}"
+            )
+
+            logger.info(f"LaTeX document generated: {latex_path}")
+            logger.info(f"BibTeX file generated: {bibtex_path}")
+        except Exception as e:
+            logger.error(f"Error generating LaTeX/BibTeX: {e}")
+            latex_path = None
+            bibtex_path = None
+
         # Update job
         job.status = "completed"
         job.status_message = f"Job completed successfully! {len(papers)} papers found."
@@ -201,6 +333,10 @@ def run_search_job(self, job_id: str):
         job.papers_processed = len(papers)
         job.progress = 100.0
         job.csv_file_path = csv_path
+        job.prisma_diagram_path = diagram_path  # Save PRISMA diagram path
+        job.latex_file_path = latex_path  # Save LaTeX document path
+        job.bibtex_file_path = bibtex_path  # Save BibTeX file path
+        job.prisma_metrics = prisma_metrics  # Save PRISMA metrics
         job.last_checkpoint = None  # Clear checkpoint on success
         db.commit()
 
@@ -226,6 +362,28 @@ def run_search_job(self, job_id: str):
         except Exception as e:
             logger.error(f"Error sending email: {e}")
             # Don't fail the job if email fails
+
+    except JobPausedException:
+        logger.info(f"Job {job_id} paused by user")
+
+        # Job is already in "paused" status from check_if_paused
+        # Save checkpoint for resumption
+        job.status_message = "Job paused by user. Click Resume to continue."
+
+        if job.end_year and job.start_year:
+            # Estimate last completed year based on progress
+            if job.progress > 0:
+                year_range = job.end_year - job.start_year + 1
+                years_completed = int((job.progress / 100.0) * year_range)
+                last_year = job.start_year + years_completed - 1
+
+                job.last_checkpoint = {
+                    'last_year_completed': last_year,
+                    'papers_collected': job.papers_processed,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'duplicate_count': duplicate_count
+                }
+        db.commit()
 
     except SoftTimeLimitExceeded:
         logger.error(f"Job {job_id} exceeded time limit (30 minutes)")
@@ -287,13 +445,13 @@ def _export_to_csv(papers: List[Dict], file_path: str):
             writer = csv.writer(f)
             writer.writerow([
                 'Title', 'Authors', 'Year', 'Source', 'Publisher',
-                'Citations', 'Abstract', 'URL'
+                'Citations', 'Abstract', 'URL', 'Semantic_Score'
             ])
         return
 
     fieldnames = [
         'title', 'authors', 'year', 'source', 'publisher',
-        'citations', 'abstract', 'url'
+        'citations', 'abstract', 'url', 'semantic_score'
     ]
 
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
@@ -308,18 +466,22 @@ def _export_to_csv(papers: List[Dict], file_path: str):
             'publisher': 'Publisher',
             'citations': 'Citations',
             'abstract': 'Abstract',
-            'url': 'URL'
+            'url': 'URL',
+            'semantic_score': 'Semantic_Score'
         })
 
         # Write data
         for paper in papers:
-            writer.writerow(paper)
+            # Ensure semantic_score is 1 or 0
+            paper_copy = paper.copy()
+            paper_copy['semantic_score'] = 1 if paper.get('semantic_score') == 1 else 0
+            writer.writerow(paper_copy)
 
 
 @celery_app.task
 def resume_failed_job(job_id: str):
     """
-    Resume a failed job from its last checkpoint.
+    Resume a failed or paused job from its last checkpoint.
 
     Args:
         job_id: UUID of the SearchJob to resume
@@ -332,13 +494,14 @@ def resume_failed_job(job_id: str):
             logger.error(f"Job {job_id} not found")
             return
 
-        if job.status != "failed":
-            logger.warning(f"Job {job_id} is not in failed state")
+        if job.status not in ["failed", "paused"]:
+            logger.warning(f"Job {job_id} is not in failed or paused state (current: {job.status})")
             return
 
         # Reset job status
         job.status = "pending"
         job.error_message = None
+        job.status_message = "Resuming job from last checkpoint..."
         db.commit()
 
         # Start the job again (it will resume from checkpoint)

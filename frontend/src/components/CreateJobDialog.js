@@ -27,6 +27,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
     use_semantic: false,
     semantic_inclusion: '',
     semantic_exclusion: '',
+    semantic_batch_mode: true,
   });
 
   const [currentKeyword, setCurrentKeyword] = useState('');
@@ -108,6 +109,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
         inclusion: formData.semantic_inclusion || null,
         exclusion: formData.semantic_exclusion || null,
       };
+      jobData.semantic_batch_mode = formData.semantic_batch_mode;
     }
 
     onSubmit(jobData);
@@ -125,6 +127,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
       use_semantic: false,
       semantic_inclusion: '',
       semantic_exclusion: '',
+      semantic_batch_mode: true,
     });
     setCurrentKeyword('');
     setCurrentExclude('');
@@ -320,6 +323,29 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
                   setFormData({ ...formData, semantic_exclusion: e.target.value })
                 }
                 placeholder="e.g., purely theoretical papers without experiments"
+                sx={{ mb: 2 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.semantic_batch_mode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, semantic_batch_mode: e.target.checked })
+                    }
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2">
+                      Batch Mode (Recommended)
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {formData.semantic_batch_mode
+                        ? 'Analyzes papers in batches of 10 - faster and uses fewer API calls'
+                        : 'Analyzes each paper individually - slower but more thorough'}
+                    </Typography>
+                  </Box>
+                }
               />
             </Box>
           )}

@@ -110,11 +110,13 @@ npm test                   # Run tests
    - **FALLBACK 2**: Playwright browser automation (most reliable but slower)
 5. **Year splitting**: If year range specified (e.g., 2020-2023), creates 4 separate searches
 6. For each year: paginate through all results (up to ~1000 per year)
-7. Optional: `SemanticFilter` uses Gemini AI to filter papers based on inclusion/exclusion criteria
-8. Papers saved to database with deduplication
-9. Export to CSV in `backend/uploads/`
-10. `EmailService` sends completion notification
-11. Job status updated to "completed" or "failed"
+7. **PRISMA Tracking**: Automatically tracks systematic review metrics (identification, screening, eligibility, inclusion)
+8. Optional: `SemanticFilter` uses Gemini AI to filter papers based on inclusion/exclusion criteria (batch or individual mode)
+9. Papers saved to database with deduplication
+10. Export to CSV in `backend/uploads/` with Semantic_Score column
+11. Generate PRISMA flow diagram (SVG) showing the systematic review process
+12. `EmailService` sends completion notification
+13. Job status updated to "completed" or "failed" with PRISMA metrics and diagram saved
 
 **NEW**: The system now uses a robust multi-strategy approach that automatically fails over between different scraping methods. See [docs/MULTI_STRATEGY_SCRAPER.md](docs/MULTI_STRATEGY_SCRAPER.md) for details.
 
@@ -151,8 +153,26 @@ Configure at: https://console.cloud.google.com/apis/credentials
 
 ### Models
 - **User**: id, email, name, picture, google_id, created_at
-- **SearchJob**: id, user_id, name, search_query, year_from, year_to, include_keywords, exclude_keywords, semantic_include, semantic_exclude, status (pending/running/completed/failed), papers_collected, status_message, celery_task_id, csv_file_path, created_at, started_at, completed_at
-- **Paper**: id, job_id, title, authors, year, source, publisher, citations, abstract, url, created_at
+- **SearchJob**: id, user_id, name, search_query, year_from, year_to, include_keywords, exclude_keywords, semantic_criteria, semantic_batch_mode, prisma_metrics, prisma_diagram_path, latex_file_path, bibtex_file_path, status (pending/running/completed/failed), papers_collected, status_message, celery_task_id, csv_file_path, created_at, started_at, completed_at
+- **Paper**: id, job_id, title, authors, year, source, publisher, citations, abstract, url, semantic_score, created_at
+
+### Output Files Generated
+LitRevTool automatically generates multiple publication-ready outputs for each completed search:
+- **CSV File** (`csv_file_path`): Structured data with all papers, includes Semantic_Score column
+- **PRISMA Diagram** (`prisma_diagram_path`): SVG flow diagram following PRISMA 2020 standards
+- **LaTeX Document** (`latex_file_path`): Complete systematic literature review in LaTeX format with AI-generated content
+- **BibTeX File** (`bibtex_file_path`): All paper citations in BibTeX format for easy reference management
+
+These files are saved to `backend/uploads/` and available for download through both web UI and CLI.
+
+### PRISMA Methodology Tracking
+LitRevTool automatically tracks systematic review metrics following the PRISMA (Preferred Reporting Items for Systematic Reviews and Meta-Analyses) methodology. The `prisma_metrics` field stores:
+- **Identification**: Total records identified from database searching
+- **Screening**: Records after duplicate removal, records screened
+- **Eligibility**: Papers assessed by semantic filter, papers excluded by semantic criteria
+- **Included**: Final papers included in results
+
+These metrics are displayed in both the web UI (Dashboard) and CLI output, providing transparency and reproducibility for systematic literature reviews.
 
 ### Important: Stuck Job Recovery
 The `npm run reset` command includes a Python script that resets all stuck jobs (status=running/pending) to failed. This is critical after crashes.

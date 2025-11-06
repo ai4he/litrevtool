@@ -24,6 +24,7 @@ import {
   Delete as DeleteIcon,
   Refresh as RefreshIcon,
   PlayArrow as PlayArrowIcon,
+  Pause as PauseIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
@@ -82,6 +83,16 @@ function Dashboard() {
     }
   };
 
+  const handlePauseJob = async (jobId) => {
+    try {
+      await jobsAPI.pauseJob(jobId);
+      fetchJobs();
+    } catch (error) {
+      console.error('Error pausing job:', error);
+      setError('Failed to pause job');
+    }
+  };
+
   const handleResumeJob = async (jobId) => {
     try {
       await jobsAPI.resumeJob(jobId);
@@ -105,6 +116,54 @@ function Dashboard() {
     } catch (error) {
       console.error('Error downloading results:', error);
       setError('Failed to download results');
+    }
+  };
+
+  const handleDownloadPrismaDiagram = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadPrismaDiagram(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'image/svg+xml' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_PRISMA.svg`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading PRISMA diagram:', error);
+      setError('Failed to download PRISMA diagram');
+    }
+  };
+
+  const handleDownloadLatex = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadLatex(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/x-tex' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_Review.tex`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading LaTeX:', error);
+      setError('Failed to download LaTeX document');
+    }
+  };
+
+  const handleDownloadBibtex = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadBibtex(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/x-bibtex' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_References.bib`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading BibTeX:', error);
+      setError('Failed to download BibTeX file');
     }
   };
 
@@ -472,9 +531,50 @@ function Dashboard() {
                   )}
 
                   {job.status === 'completed' && (
-                    <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
-                      Found {job.total_papers_found} papers
-                    </Typography>
+                    <>
+                      <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>
+                        Found {job.total_papers_found} papers
+                      </Typography>
+
+                      {/* PRISMA Metrics */}
+                      {job.prisma_metrics && (
+                        <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1, border: '1px solid', borderColor: 'success.light' }}>
+                          <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                            📊 PRISMA Methodology Metrics
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>Identified:</strong> {job.prisma_metrics.identification.records_identified} records
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>Duplicates Removed:</strong> {job.prisma_metrics.screening.records_excluded_duplicates}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                              <strong>After Deduplication:</strong> {job.prisma_metrics.screening.records_after_duplicates_removed}
+                            </Typography>
+                            {job.prisma_metrics.eligibility.full_text_assessed > 0 && (
+                              <>
+                                <Typography variant="caption" color="textSecondary">
+                                  <strong>Semantic Assessed:</strong> {job.prisma_metrics.eligibility.full_text_assessed}
+                                </Typography>
+                                <Typography variant="caption" color="textSecondary">
+                                  <strong>Semantic Excluded:</strong> {job.prisma_metrics.eligibility.full_text_excluded_semantic}
+                                </Typography>
+                              </>
+                            )}
+                            <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ mt: 0.5 }}>
+                              <strong>Final Included:</strong> {job.prisma_metrics.included.studies_included} papers
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </>
+                  )}
+
+                  {job.status === 'paused' && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      {job.status_message || 'Job is paused. Click Resume to continue from where it left off.'}
+                    </Alert>
                   )}
 
                   {job.status === 'failed' && job.error_message && (
@@ -483,27 +583,75 @@ function Dashboard() {
                     </Alert>
                   )}
 
-                  <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                    {job.status === 'completed' && (
+                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                    {job.status === 'running' && (
                       <Button
                         size="small"
-                        variant="contained"
-                        startIcon={<DownloadIcon />}
-                        onClick={() => handleDownload(job.id, job.name)}
+                        variant="outlined"
+                        color="warning"
+                        startIcon={<PauseIcon />}
+                        onClick={() => handlePauseJob(job.id)}
                       >
-                        Download CSV
+                        Pause
                       </Button>
                     )}
 
-                    {job.status === 'failed' && (
-                      <IconButton
+                    {job.status === 'completed' && (
+                      <>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<DownloadIcon />}
+                          onClick={() => handleDownload(job.id, job.name)}
+                        >
+                          Download CSV
+                        </Button>
+                        {job.prisma_diagram_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadPrismaDiagram(job.id, job.name)}
+                            sx={{ borderColor: 'success.main', color: 'success.main', '&:hover': { borderColor: 'success.dark', bgcolor: 'success.light' } }}
+                          >
+                            PRISMA Diagram
+                          </Button>
+                        )}
+                        {job.latex_file_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadLatex(job.id, job.name)}
+                            sx={{ borderColor: 'info.main', color: 'info.main', '&:hover': { borderColor: 'info.dark', bgcolor: 'info.light' } }}
+                          >
+                            LaTeX
+                          </Button>
+                        )}
+                        {job.bibtex_file_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadBibtex(job.id, job.name)}
+                            sx={{ borderColor: 'info.main', color: 'info.main', '&:hover': { borderColor: 'info.dark', bgcolor: 'info.light' } }}
+                          >
+                            BibTeX
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {(job.status === 'failed' || job.status === 'paused') && (
+                      <Button
                         size="small"
+                        variant="outlined"
                         color="primary"
+                        startIcon={<PlayArrowIcon />}
                         onClick={() => handleResumeJob(job.id)}
-                        title="Resume job"
                       >
-                        <PlayArrowIcon />
-                      </IconButton>
+                        Resume
+                      </Button>
                     )}
 
                     {(job.status === 'running' || job.status === 'completed') && (

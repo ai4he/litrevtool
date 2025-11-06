@@ -14,6 +14,7 @@ class SearchJobCreate(BaseModel):
     keywords_include: List[str]
     keywords_exclude: Optional[List[str]] = []
     semantic_criteria: Optional[SemanticCriteria] = None
+    semantic_batch_mode: Optional[bool] = True
     start_year: Optional[int] = None
     end_year: Optional[int] = None
     max_results: Optional[int] = None
@@ -31,6 +32,7 @@ class SearchJob(BaseModel):
     keywords_include: List[str]
     keywords_exclude: List[str]
     semantic_criteria: Optional[Dict] = None
+    semantic_batch_mode: Optional[bool] = True
     start_year: Optional[int] = None
     end_year: Optional[int] = None
     max_results: Optional[int] = None
@@ -43,6 +45,10 @@ class SearchJob(BaseModel):
     retry_count: int
     celery_task_id: Optional[str] = None
     csv_file_path: Optional[str] = None
+    prisma_diagram_path: Optional[str] = None
+    latex_file_path: Optional[str] = None
+    bibtex_file_path: Optional[str] = None
+    prisma_metrics: Optional[Dict] = None
     created_at: datetime
     updated_at: datetime
     started_at: Optional[datetime] = None

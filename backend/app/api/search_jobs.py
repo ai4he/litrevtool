@@ -215,6 +215,49 @@ async def delete_search_job(
     db.commit()
 
 
+@router.post("/{job_id}/pause", response_model=SearchJob)
+async def pause_search_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Pause a running search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        Paused search job
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "running":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only running jobs can be paused"
+        )
+
+    # Update job status to paused - the Celery task will detect this and stop gracefully
+    job.status = "paused"
+    job.status_message = "Pausing job..."
+    db.commit()
+    db.refresh(job)
+
+    return job
+
+
 @router.post("/{job_id}/resume", response_model=SearchJob)
 async def resume_search_job(
     job_id: str,
@@ -222,7 +265,7 @@ async def resume_search_job(
     db: Session = Depends(get_db)
 ):
     """
-    Resume a failed search job.
+    Resume a failed or paused search job.
 
     Args:
         job_id: Job UUID
@@ -243,10 +286,10 @@ async def resume_search_job(
             detail="Search job not found"
         )
 
-    if job.status != "failed":
+    if job.status not in ["failed", "paused"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only failed jobs can be resumed"
+            detail="Only failed or paused jobs can be resumed"
         )
 
     # Start the resume task
@@ -342,6 +385,153 @@ async def download_results(
     return FileResponse(
         path=job.csv_file_path,
         media_type="text/csv",
+        filename=filename
+    )
+
+
+@router.get("/{job_id}/prisma-diagram")
+async def download_prisma_diagram(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download PRISMA flow diagram for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        SVG file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.prisma_diagram_path or not os.path.exists(job.prisma_diagram_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="PRISMA diagram not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_PRISMA_{job.id}.svg"
+
+    return FileResponse(
+        path=job.prisma_diagram_path,
+        media_type="image/svg+xml",
+        filename=filename
+    )
+
+
+@router.get("/{job_id}/latex")
+async def download_latex(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download LaTeX systematic review document for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        LaTeX file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.latex_file_path or not os.path.exists(job.latex_file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="LaTeX document not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_Review_{job.id}.tex"
+
+    return FileResponse(
+        path=job.latex_file_path,
+        media_type="application/x-tex",
+        filename=filename
+    )
+
+
+@router.get("/{job_id}/bibtex")
+async def download_bibtex(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download BibTeX references file for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        BibTeX file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.bibtex_file_path or not os.path.exists(job.bibtex_file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="BibTeX file not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_References_{job.id}.bib"
+
+    return FileResponse(
+        path=job.bibtex_file_path,
+        media_type="application/x-bibtex",
         filename=filename
     )
 
