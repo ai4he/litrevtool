@@ -287,13 +287,13 @@ def _export_to_csv(papers: List[Dict], file_path: str):
             writer = csv.writer(f)
             writer.writerow([
                 'Title', 'Authors', 'Year', 'Source', 'Publisher',
-                'Citations', 'Abstract', 'URL'
+                'Citations', 'Abstract', 'URL', 'Semantic_Score'
             ])
         return
 
     fieldnames = [
         'title', 'authors', 'year', 'source', 'publisher',
-        'citations', 'abstract', 'url'
+        'citations', 'abstract', 'url', 'semantic_score'
     ]
 
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
@@ -308,12 +308,16 @@ def _export_to_csv(papers: List[Dict], file_path: str):
             'publisher': 'Publisher',
             'citations': 'Citations',
             'abstract': 'Abstract',
-            'url': 'URL'
+            'url': 'URL',
+            'semantic_score': 'Semantic_Score'
         })
 
         # Write data
         for paper in papers:
-            writer.writerow(paper)
+            # Ensure semantic_score is 1 or 0
+            paper_copy = paper.copy()
+            paper_copy['semantic_score'] = 1 if paper.get('semantic_score') == 1 else 0
+            writer.writerow(paper_copy)
 
 
 @celery_app.task

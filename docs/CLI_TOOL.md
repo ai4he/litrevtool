@@ -203,6 +203,9 @@ The CSV file contains:
 | Citations | Citation count |
 | Abstract | Paper abstract/snippet |
 | URL | Link to paper |
+| Semantic_Score | 1 if paper passed semantic filtering, 0 otherwise |
+
+**Note**: The CLI tool does not currently support configuring semantic filtering criteria. The `Semantic_Score` column will be 0 for all papers when using CLI searches. This column is included for consistency with the web UI CSV exports, which do support semantic filtering.
 
 ## Monitoring Progress
 

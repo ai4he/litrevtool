@@ -289,7 +289,7 @@ def export_results(
         print_warning("No papers found to export")
         # Create empty CSV with headers
         with open(output_file, 'w') as f:
-            f.write("Title,Authors,Year,Source,Publisher,Citations,Abstract,URL\n")
+            f.write("Title,Authors,Year,Source,Publisher,Citations,Abstract,URL,Semantic_Score\n")
         print_info(f"Created empty CSV: {output_file}")
         return True
 
@@ -299,11 +299,14 @@ def export_results(
     try:
         with open(output_file, 'w', newline='', encoding='utf-8') as f:
             fieldnames = ['Title', 'Authors', 'Year', 'Source', 'Publisher',
-                         'Citations', 'Abstract', 'URL']
+                         'Citations', 'Abstract', 'URL', 'Semantic_Score']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
 
             for paper in papers:
+                # Convert semantic_score to 1 or 0 (None means no semantic filtering was applied, treat as 0)
+                semantic_score = 1 if paper.semantic_score == 1 else 0
+
                 writer.writerow({
                     'Title': paper.title or '',
                     'Authors': paper.authors or '',
@@ -312,7 +315,8 @@ def export_results(
                     'Publisher': paper.publisher or '',
                     'Citations': paper.citations or 0,
                     'Abstract': paper.abstract or '',
-                    'URL': paper.url or ''
+                    'URL': paper.url or '',
+                    'Semantic_Score': semantic_score
                 })
 
         file_size = os.path.getsize(output_file)
