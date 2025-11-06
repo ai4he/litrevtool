@@ -155,12 +155,14 @@ function Dashboard() {
   // Fetch papers for running/completed jobs automatically
   useEffect(() => {
     jobs.forEach(job => {
-      // Always fetch papers for running jobs, and for completed/expanded jobs
-      if (job.status === 'running' || ((job.status === 'completed') && expandedJobs[job.id])) {
-        fetchPapers(job.id);
+      // Always fetch papers for running and completed jobs
+      if (job.status === 'running' || job.status === 'completed') {
+        if (!jobPapers[job.id]) {  // Only fetch if not already loaded
+          fetchPapers(job.id);
+        }
       }
     });
-  }, [jobs, expandedJobs, fetchPapers]);
+  }, [jobs, fetchPapers, jobPapers]);
 
   // Fetch screenshots for running jobs
   useEffect(() => {
