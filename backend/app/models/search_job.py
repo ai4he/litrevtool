@@ -18,6 +18,7 @@ class SearchJob(Base):
     keywords_include = Column(JSON, nullable=False)  # List of keywords to include
     keywords_exclude = Column(JSON, default=list)  # List of keywords to exclude
     semantic_criteria = Column(JSON, nullable=True)  # Optional semantic filtering
+    semantic_batch_mode = Column(Boolean, default=True)  # True = batch mode (default), False = individual analysis
     start_year = Column(Integer, nullable=True)
     end_year = Column(Integer, nullable=True)
     max_results = Column(Integer, nullable=True)  # Maximum number of results to collect (null = unlimited)

@@ -14,6 +14,7 @@ class SearchJobCreate(BaseModel):
     keywords_include: List[str]
     keywords_exclude: Optional[List[str]] = []
     semantic_criteria: Optional[SemanticCriteria] = None
+    semantic_batch_mode: Optional[bool] = True
     start_year: Optional[int] = None
     end_year: Optional[int] = None
     max_results: Optional[int] = None
@@ -31,6 +32,7 @@ class SearchJob(BaseModel):
     keywords_include: List[str]
     keywords_exclude: List[str]
     semantic_criteria: Optional[Dict] = None
+    semantic_batch_mode: Optional[bool] = True
     start_year: Optional[int] = None
     end_year: Optional[int] = None
     max_results: Optional[int] = None

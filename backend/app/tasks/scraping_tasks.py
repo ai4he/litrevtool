@@ -134,8 +134,12 @@ def run_search_job(self, job_id: str):
 
         # Apply semantic filtering if configured
         if job.semantic_criteria:
-            logger.info("Applying semantic filtering...")
-            job.status_message = "Applying semantic filtering to papers..."
+            # Determine batch size based on batch mode setting
+            batch_size = 10 if job.semantic_batch_mode else 1
+            mode_str = "batch mode" if job.semantic_batch_mode else "individual mode"
+
+            logger.info(f"Applying semantic filtering in {mode_str} (batch_size={batch_size})...")
+            job.status_message = f"Applying semantic filtering to papers ({mode_str})..."
             db.commit()
             semantic_filter = SemanticFilter()
 
@@ -145,7 +149,8 @@ def run_search_job(self, job_id: str):
             papers = semantic_filter.filter_papers(
                 papers,
                 inclusion_criteria=inclusion_criteria,
-                exclusion_criteria=exclusion_criteria
+                exclusion_criteria=exclusion_criteria,
+                batch_size=batch_size
             )
 
             logger.info(f"After semantic filtering: {len(papers)} papers remain")

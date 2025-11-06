@@ -46,6 +46,9 @@ npm run cli:help
 | `--end-year` | No | Ending year for search | `--end-year 2023` |
 | `--max-results` | No | Maximum results to export | `--max-results 50` |
 | `--output` | No | Output CSV filename (auto-generated if omitted) | `--output results.csv` |
+| `--semantic-include` | No | Semantic inclusion criteria | `--semantic-include "practical applications"` |
+| `--semantic-exclude` | No | Semantic exclusion criteria | `--semantic-exclude "purely theoretical"` |
+| `--semantic-individual` | No | Analyze papers individually (default: batch mode) | `--semantic-individual` |
 | `--no-wait` | No | Create job and exit without waiting | `--no-wait` |
 
 ## Examples
@@ -110,6 +113,34 @@ Creates the job and exits immediately. Monitor with:
 ```bash
 npm run logs:celery
 ```
+
+### Example 6: Semantic Filtering (Batch Mode)
+
+```bash
+npm run cli -- \
+  --include "machine learning" \
+  --start-year 2023 \
+  --end-year 2023 \
+  --semantic-include "papers with practical applications and case studies" \
+  --semantic-exclude "purely theoretical papers without experiments" \
+  --max-results 50
+```
+
+Uses AI to filter papers based on semantic criteria. By default, analyzes papers in batches of 10.
+
+### Example 7: Semantic Filtering (Individual Mode)
+
+```bash
+npm run cli -- \
+  --include "deep learning" \
+  --start-year 2023 \
+  --end-year 2023 \
+  --semantic-include "novel neural network architectures" \
+  --semantic-individual \
+  --max-results 30
+```
+
+Analyzes each paper individually for more thorough filtering (slower, more API calls).
 
 ## Auto-Generated Filenames
 
@@ -205,7 +236,7 @@ The CSV file contains:
 | URL | Link to paper |
 | Semantic_Score | 1 if paper passed semantic filtering, 0 otherwise |
 
-**Note**: The CLI tool does not currently support configuring semantic filtering criteria. The `Semantic_Score` column will be 0 for all papers when using CLI searches. This column is included for consistency with the web UI CSV exports, which do support semantic filtering.
+**Note**: The `Semantic_Score` column shows whether a paper passed AI-powered semantic filtering (1 = passed, 0 = not passed or no filtering applied). Use `--semantic-include` and `--semantic-exclude` flags to enable semantic filtering in CLI searches.
 
 ## Monitoring Progress
 
@@ -462,7 +493,8 @@ All CLI searches are associated with this user. You can see them in the web UI a
 | Monitor progress | ✅ (terminal) | ✅ (live updates) |
 | Download results | ✅ (automatic) | ✅ (download button) |
 | View past searches | ❌ | ✅ |
-| Semantic filtering | ❌ | ✅ |
+| Semantic filtering | ✅ | ✅ |
+| Semantic batch/individual mode | ✅ | ✅ |
 | Email notifications | ❌ | ✅ |
 | Batch processing | ✅ (scripts) | ❌ |
 | Automation | ✅ (cron) | ❌ |
@@ -487,6 +519,12 @@ A: Yes, but the CLI will recreate it on next run.
 
 **Q: Does the CLI use the multi-strategy scraper?**
 A: Yes! It uses the same multi-strategy system as the web UI (scholarly → requests → playwright).
+
+**Q: Should I use batch mode or individual mode for semantic filtering?**
+A: Use batch mode (default) for most cases. It's faster and uses 10x fewer API calls. Only use individual mode (`--semantic-individual`) if you need more thorough analysis for a small number of papers.
+
+**Q: How does semantic filtering affect API costs?**
+A: Batch mode processes ~10 papers per API call. Individual mode makes 1 API call per paper. For 100 papers: batch = ~10 calls, individual = 100 calls.
 
 ## Troubleshooting
 

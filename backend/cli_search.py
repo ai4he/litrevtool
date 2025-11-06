@@ -161,7 +161,10 @@ def create_search_job(
     start_year: Optional[int],
     end_year: Optional[int],
     max_results: Optional[int],
-    output_file: str
+    output_file: str,
+    semantic_include: Optional[str] = None,
+    semantic_exclude: Optional[str] = None,
+    semantic_batch_mode: bool = True
 ) -> SearchJob:
     """Create a search job in the database."""
 
@@ -169,6 +172,14 @@ def create_search_job(
     job_name = f"CLI Search: {' '.join(include_keywords[:3])}"
     if start_year and end_year:
         job_name += f" ({start_year}-{end_year})"
+
+    # Prepare semantic criteria if provided
+    semantic_criteria = None
+    if semantic_include or semantic_exclude:
+        semantic_criteria = {
+            'inclusion': semantic_include,
+            'exclusion': semantic_exclude
+        }
 
     # Create job
     job = SearchJob(
@@ -179,6 +190,8 @@ def create_search_job(
         keywords_exclude=exclude_keywords,
         start_year=start_year,
         end_year=end_year,
+        semantic_criteria=semantic_criteria,
+        semantic_batch_mode=semantic_batch_mode,
         status="pending",
         status_message="Job created via CLI"
     )
@@ -434,6 +447,24 @@ Note: The scraper will run to completion even if --max-results is reached.
         help='Create job and exit without waiting for completion'
     )
 
+    parser.add_argument(
+        '--semantic-include',
+        type=str,
+        help='Semantic inclusion criteria (e.g., "papers with practical applications")'
+    )
+
+    parser.add_argument(
+        '--semantic-exclude',
+        type=str,
+        help='Semantic exclusion criteria (e.g., "purely theoretical papers")'
+    )
+
+    parser.add_argument(
+        '--semantic-individual',
+        action='store_true',
+        help='Analyze papers individually instead of in batches (slower, more API calls)'
+    )
+
     args = parser.parse_args()
 
     # Validate year range
@@ -460,6 +491,14 @@ Note: The scraper will run to completion even if --max-results is reached.
         print(f"  Year Range:       {year_range}")
     if args.max_results:
         print(f"  Max Results:      {args.max_results}")
+    if args.semantic_include or args.semantic_exclude:
+        print(f"\n  {Colors.BOLD}Semantic Filtering Enabled:{Colors.ENDC}")
+        if args.semantic_include:
+            print(f"    Include:        {args.semantic_include}")
+        if args.semantic_exclude:
+            print(f"    Exclude:        {args.semantic_exclude}")
+        mode = "Individual" if args.semantic_individual else "Batch"
+        print(f"    Mode:           {mode}")
 
     # Generate output filename if not provided
     if not args.output:
@@ -493,7 +532,10 @@ Note: The scraper will run to completion even if --max-results is reached.
             start_year=args.start_year,
             end_year=args.end_year,
             max_results=args.max_results,
-            output_file=args.output
+            output_file=args.output,
+            semantic_include=args.semantic_include if hasattr(args, 'semantic_include') else None,
+            semantic_exclude=args.semantic_exclude if hasattr(args, 'semantic_exclude') else None,
+            semantic_batch_mode=not args.semantic_individual if hasattr(args, 'semantic_individual') else True
         )
 
         print_success(f"Job created: {job.id}")
