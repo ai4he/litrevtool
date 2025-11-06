@@ -32,6 +32,7 @@ from app.db.session import SessionLocal
 from app.models import SearchJob, Paper, User
 from app.tasks.scraping_tasks import run_search_job
 from app.services.prisma_diagram import generate_prisma_diagram
+from app.services.latex_generator import generate_systematic_review
 from app.core.config import settings
 import uuid
 
@@ -400,6 +401,50 @@ def display_summary(
             print()
         except Exception as e:
             print_warning(f"Could not generate PRISMA diagram: {e}")
+            print()
+
+        # Generate LaTeX systematic review and BibTeX
+        try:
+            latex_filename = output_file.rsplit('.', 1)[0] + '_Review.tex'
+            bibtex_filename = output_file.rsplit('.', 1)[0] + '_References.bib'
+
+            # Get papers from database
+            papers_data = db.query(Paper).filter(Paper.search_job_id == job_id).all()
+            papers_list = [
+                {
+                    'title': p.title,
+                    'authors': p.authors,
+                    'year': p.year,
+                    'abstract': p.abstract,
+                    'source': p.source,
+                    'publisher': p.publisher,
+                    'url': p.url,
+                    'citations': p.citations
+                }
+                for p in papers_data
+            ]
+
+            search_criteria = {
+                'keywords_include': job.keywords_include,
+                'keywords_exclude': job.keywords_exclude,
+                'start_year': job.start_year,
+                'end_year': job.end_year
+            }
+
+            generate_systematic_review(
+                papers=papers_list,
+                search_criteria=search_criteria,
+                prisma_metrics=prisma,
+                latex_output_path=latex_filename,
+                bibtex_output_path=bibtex_filename,
+                title=f"Systematic Literature Review: {job.name}"
+            )
+
+            print_success(f"LaTeX document saved: {latex_filename}")
+            print_success(f"BibTeX references saved: {bibtex_filename}")
+            print()
+        except Exception as e:
+            print_warning(f"Could not generate LaTeX/BibTeX: {e}")
             print()
 
     # Display strategy statistics if available

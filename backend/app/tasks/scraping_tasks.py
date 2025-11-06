@@ -14,6 +14,7 @@ from app.services.multi_strategy_scraper import MultiStrategyScholarScraper
 from app.services.semantic_filter import SemanticFilter
 from app.services.email_service import EmailService
 from app.services.prisma_diagram import generate_prisma_diagram
+from app.services.latex_generator import generate_systematic_review
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -265,6 +266,42 @@ def run_search_job(self, job_id: str):
             logger.error(f"Error generating PRISMA diagram: {e}")
             diagram_path = None  # Don't fail the job if diagram generation fails
 
+        # Generate LaTeX systematic review and BibTeX
+        latex_filename = f"review_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tex"
+        latex_path = os.path.join(settings.UPLOAD_DIR, latex_filename)
+        bibtex_filename = f"references_{job_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bib"
+        bibtex_path = os.path.join(settings.UPLOAD_DIR, bibtex_filename)
+
+        try:
+            logger.info("Generating LaTeX systematic review document...")
+            job.status_message = "Generating systematic review document..."
+            db.commit()
+
+            # Prepare search criteria for document
+            search_criteria = {
+                'keywords_include': job.keywords_include,
+                'keywords_exclude': job.keywords_exclude,
+                'start_year': job.start_year,
+                'end_year': job.end_year
+            }
+
+            # Generate both LaTeX and BibTeX
+            generate_systematic_review(
+                papers=papers,
+                search_criteria=search_criteria,
+                prisma_metrics=prisma_metrics,
+                latex_output_path=latex_path,
+                bibtex_output_path=bibtex_path,
+                title=f"Systematic Literature Review: {job.name}"
+            )
+
+            logger.info(f"LaTeX document generated: {latex_path}")
+            logger.info(f"BibTeX file generated: {bibtex_path}")
+        except Exception as e:
+            logger.error(f"Error generating LaTeX/BibTeX: {e}")
+            latex_path = None
+            bibtex_path = None
+
         # Update job
         job.status = "completed"
         job.status_message = f"Job completed successfully! {len(papers)} papers found."
@@ -274,6 +311,8 @@ def run_search_job(self, job_id: str):
         job.progress = 100.0
         job.csv_file_path = csv_path
         job.prisma_diagram_path = diagram_path  # Save PRISMA diagram path
+        job.latex_file_path = latex_path  # Save LaTeX document path
+        job.bibtex_file_path = bibtex_path  # Save BibTeX file path
         job.prisma_metrics = prisma_metrics  # Save PRISMA metrics
         job.last_checkpoint = None  # Clear checkpoint on success
         db.commit()

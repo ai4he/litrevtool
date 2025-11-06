@@ -124,6 +124,38 @@ function Dashboard() {
     }
   };
 
+  const handleDownloadLatex = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadLatex(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/x-tex' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_Review.tex`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading LaTeX:', error);
+      setError('Failed to download LaTeX document');
+    }
+  };
+
+  const handleDownloadBibtex = async (jobId, jobName) => {
+    try {
+      const response = await jobsAPI.downloadBibtex(jobId);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/x-bibtex' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${jobName.replace(/\s+/g, '_')}_References.bib`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error downloading BibTeX:', error);
+      setError('Failed to download BibTeX file');
+    }
+  };
+
   const fetchPapers = useCallback(async (jobId) => {
     try {
       const response = await jobsAPI.getPapers(jobId);
@@ -554,6 +586,28 @@ function Dashboard() {
                             sx={{ borderColor: 'success.main', color: 'success.main', '&:hover': { borderColor: 'success.dark', bgcolor: 'success.light' } }}
                           >
                             PRISMA Diagram
+                          </Button>
+                        )}
+                        {job.latex_file_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadLatex(job.id, job.name)}
+                            sx={{ borderColor: 'info.main', color: 'info.main', '&:hover': { borderColor: 'info.dark', bgcolor: 'info.light' } }}
+                          >
+                            LaTeX
+                          </Button>
+                        )}
+                        {job.bibtex_file_path && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={() => handleDownloadBibtex(job.id, job.name)}
+                            sx={{ borderColor: 'info.main', color: 'info.main', '&:hover': { borderColor: 'info.dark', bgcolor: 'info.light' } }}
+                          >
+                            BibTeX
                           </Button>
                         )}
                       </>

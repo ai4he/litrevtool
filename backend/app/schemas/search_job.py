@@ -46,6 +46,8 @@ class SearchJob(BaseModel):
     celery_task_id: Optional[str] = None
     csv_file_path: Optional[str] = None
     prisma_diagram_path: Optional[str] = None
+    latex_file_path: Optional[str] = None
+    bibtex_file_path: Optional[str] = None
     prisma_metrics: Optional[Dict] = None
     created_at: datetime
     updated_at: datetime

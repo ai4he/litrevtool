@@ -53,6 +53,26 @@ export const jobsAPI = {
       },
     });
   },
+  downloadLatex: (jobId) => {
+    return axios({
+      url: `${API_URL}/api/v1/jobs/${jobId}/latex`,
+      method: 'GET',
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+  },
+  downloadBibtex: (jobId) => {
+    return axios({
+      url: `${API_URL}/api/v1/jobs/${jobId}/bibtex`,
+      method: 'GET',
+      responseType: 'blob',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+  },
   getScreenshot: (jobId) => {
     return `${API_URL}/api/v1/jobs/${jobId}/screenshot?t=${Date.now()}`;
   },

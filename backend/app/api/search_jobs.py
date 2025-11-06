@@ -395,6 +395,104 @@ async def download_prisma_diagram(
     )
 
 
+@router.get("/{job_id}/latex")
+async def download_latex(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download LaTeX systematic review document for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        LaTeX file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.latex_file_path or not os.path.exists(job.latex_file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="LaTeX document not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_Review_{job.id}.tex"
+
+    return FileResponse(
+        path=job.latex_file_path,
+        media_type="application/x-tex",
+        filename=filename
+    )
+
+
+@router.get("/{job_id}/bibtex")
+async def download_bibtex(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Download BibTeX references file for a completed search job.
+
+    Args:
+        job_id: Job UUID
+        current_user: Current authenticated user
+        db: Database session
+
+    Returns:
+        BibTeX file download
+    """
+    job = db.query(SearchJobModel).filter(
+        SearchJobModel.id == job_id,
+        SearchJobModel.user_id == current_user.id
+    ).first()
+
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Search job not found"
+        )
+
+    if job.status != "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is not completed yet"
+        )
+
+    if not job.bibtex_file_path or not os.path.exists(job.bibtex_file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="BibTeX file not found"
+        )
+
+    filename = f"{job.name.replace(' ', '_')}_References_{job.id}.bib"
+
+    return FileResponse(
+        path=job.bibtex_file_path,
+        media_type="application/x-bibtex",
+        filename=filename
+    )
+
+
 @router.get("/{job_id}/screenshot")
 async def get_latest_screenshot(
     job_id: str,
