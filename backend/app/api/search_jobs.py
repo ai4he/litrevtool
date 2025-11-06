@@ -58,6 +58,7 @@ async def create_search_job(
         semantic_criteria=job_data.semantic_criteria.dict() if job_data.semantic_criteria else None,
         start_year=job_data.start_year,
         end_year=job_data.end_year,
+        max_results=job_data.max_results,
         status="pending"
     )
 

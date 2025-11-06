@@ -20,6 +20,7 @@ class SearchJob(Base):
     semantic_criteria = Column(JSON, nullable=True)  # Optional semantic filtering
     start_year = Column(Integer, nullable=True)
     end_year = Column(Integer, nullable=True)
+    max_results = Column(Integer, nullable=True)  # Maximum number of results to collect (null = unlimited)
 
     # Job status
     status = Column(

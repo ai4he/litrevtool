@@ -16,6 +16,7 @@ class SearchJobCreate(BaseModel):
     semantic_criteria: Optional[SemanticCriteria] = None
     start_year: Optional[int] = None
     end_year: Optional[int] = None
+    max_results: Optional[int] = None
 
 
 class SearchJobUpdate(BaseModel):
@@ -32,6 +33,7 @@ class SearchJob(BaseModel):
     semantic_criteria: Optional[Dict] = None
     start_year: Optional[int] = None
     end_year: Optional[int] = None
+    max_results: Optional[int] = None
     status: str
     progress: float
     total_papers_found: int

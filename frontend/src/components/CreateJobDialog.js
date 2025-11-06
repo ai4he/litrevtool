@@ -23,6 +23,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
     keywords_exclude: [],
     start_year: '',
     end_year: '',
+    max_results: '',
     use_semantic: false,
     semantic_inclusion: '',
     semantic_exclusion: '',
@@ -99,6 +100,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
       keywords_exclude: formData.keywords_exclude,
       start_year: formData.start_year ? parseInt(formData.start_year) : null,
       end_year: formData.end_year ? parseInt(formData.end_year) : null,
+      max_results: formData.max_results ? parseInt(formData.max_results) : null,
     };
 
     if (formData.use_semantic && (formData.semantic_inclusion || formData.semantic_exclusion)) {
@@ -119,6 +121,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
       keywords_exclude: [],
       start_year: '',
       end_year: '',
+      max_results: '',
       use_semantic: false,
       semantic_inclusion: '',
       semantic_exclusion: '',
@@ -264,6 +267,17 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
               sx={{ flex: 1 }}
             />
           </Box>
+
+          <TextField
+            label="Maximum Results (optional)"
+            type="number"
+            fullWidth
+            value={formData.max_results}
+            onChange={(e) => setFormData({ ...formData, max_results: e.target.value })}
+            placeholder="Leave empty to collect all available results"
+            helperText="Limit the number of papers to collect. Leave empty for unlimited."
+            sx={{ mb: 3 }}
+          />
 
           <Divider sx={{ my: 2 }} />
 

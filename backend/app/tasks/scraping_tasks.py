@@ -122,6 +122,7 @@ def run_search_job(self, job_id: str):
             keywords_exclude=job.keywords_exclude or [],
             start_year=start_year,
             end_year=job.end_year,
+            max_results=job.max_results,
             progress_callback=update_progress,
             papers_callback=save_papers_callback
         )
