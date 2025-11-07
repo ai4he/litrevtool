@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "LitRevTool - Google Scholar Literature Review Tool",
   "scripts": {
-    "deploy": "bash deploy.sh",
+    "deploy": "bash deploy-node.sh",
+    "deploy:prod": "cd frontend && npm run build:prod && sudo mkdir -p /var/www/litrev && sudo cp -r build/* /var/www/litrev/ && sudo chown -R www-data:www-data /var/www/litrev && echo 'Frontend deployed to /var/www/litrev'",
     "install:all": "echo '📦 Installing backend dependencies...' && cd backend && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt && deactivate && cd .. && echo '📦 Installing frontend dependencies...' && cd frontend && npm install && cd .. && echo '✅ All dependencies installed!'",
     "setup:db": "cd backend && source venv/bin/activate && python3 -c \"from app.db.session import engine; from app.models import Base; Base.metadata.create_all(bind=engine); print('Database initialized')\" && deactivate && cd ..",
     "start": "pm2 start ecosystem.config.js",

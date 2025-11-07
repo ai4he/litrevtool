@@ -139,6 +139,23 @@ print_step "Installing npm dependencies..."
 npm install
 print_success "npm dependencies installed"
 
+# Build production frontend
+print_step "Building production frontend with memory optimizations..."
+GENERATE_SOURCEMAP=false NODE_OPTIONS="--max-old-space-size=512" REACT_APP_API_URL=https://litrev.haielab.org npm run build
+print_success "Frontend built successfully"
+
+# Deploy to Nginx directory
+if [ -d "build" ]; then
+    print_step "Deploying frontend to /var/www/litrev..."
+    sudo mkdir -p /var/www/litrev
+    sudo cp -r build/* /var/www/litrev/
+    sudo chown -R www-data:www-data /var/www/litrev
+    print_success "Frontend deployed to /var/www/litrev"
+else
+    print_error "Build directory not found!"
+    exit 1
+fi
+
 echo ""
 echo "Step 4: Checking environment configuration..."
 echo "-----------------------------------"
