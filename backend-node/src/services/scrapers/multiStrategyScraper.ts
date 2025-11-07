@@ -239,10 +239,16 @@ export class MultiStrategyScholarScraper {
         logger.warn(`MultiStrategy: ✗ ${strategyName} failed: ${error.message}`);
         lastException = error;
 
-        // Wait before trying next strategy
-        const waitTime = error.message?.toLowerCase().includes('captcha') ? 3000 : 5000;
+        // LESSON LEARNED: Python switched faster on CAPTCHA (3s) than other errors (5s)
+        // This allows faster failover to Playwright when HTTP is blocked
+        const isCaptchaOrBlock =
+          error.message?.toLowerCase().includes('captcha') ||
+          error.message?.includes('403') ||
+          error.message?.includes('429');
+
+        const waitTime = isCaptchaOrBlock ? 3000 : 5000;
         logger.info(
-          `MultiStrategy: Waiting ${waitTime / 1000}s before trying next strategy...`
+          `MultiStrategy: ${isCaptchaOrBlock ? 'CAPTCHA/Block detected' : 'Error detected'}, waiting ${waitTime / 1000}s before trying next strategy...`
         );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         continue;

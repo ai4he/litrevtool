@@ -23,6 +23,7 @@ interface ScraperStats {
   failureCount: number;
   captchaCount: number;
   errorCount: number;
+  consecutiveErrors: number;
 }
 
 export class HttpScholarScraper {
@@ -39,6 +40,7 @@ export class HttpScholarScraper {
       failureCount: 0,
       captchaCount: 0,
       errorCount: 0,
+      consecutiveErrors: 0,
     };
     this.lastRequestTime = 0;
 
@@ -115,18 +117,27 @@ export class HttpScholarScraper {
       text.toLowerCase().includes('captcha')
     ) {
       this.stats.captchaCount++;
-      logger.warn(`HTTP Scraper: CAPTCHA detected! (count: ${this.stats.captchaCount}/3)`);
+      this.stats.consecutiveErrors++;
+      logger.warn(
+        `HTTP Scraper: CAPTCHA detected! (captcha: ${this.stats.captchaCount}/3, consecutive errors: ${this.stats.consecutiveErrors})`
+      );
 
+      // LESSON LEARNED: Python used max 3 CAPTCHA retries - fail fast and switch strategies
       if (this.stats.captchaCount >= 3) {
-        throw new Error(`CAPTCHA detected ${this.stats.captchaCount} times - HTTP strategy failed`);
+        throw new Error(
+          `CAPTCHA detected ${this.stats.captchaCount} times - HTTP strategy failed, switching to Playwright`
+        );
       }
       throw new Error('CAPTCHA detected');
     }
 
-    // Reset CAPTCHA counter on success
-    if (this.stats.captchaCount > 0) {
-      logger.info(`HTTP Scraper: Success, resetting CAPTCHA counter`);
+    // Reset CAPTCHA and consecutive error counters on success
+    if (this.stats.captchaCount > 0 || this.stats.consecutiveErrors > 0) {
+      logger.info(
+        `HTTP Scraper: Success! Resetting CAPTCHA counter (${this.stats.captchaCount}) and consecutive errors (${this.stats.consecutiveErrors})`
+      );
       this.stats.captchaCount = 0;
+      this.stats.consecutiveErrors = 0; // LESSON LEARNED: Reset on first success
     }
 
     // Human-like delay
@@ -285,29 +296,52 @@ export class HttpScholarScraper {
         } catch (error: any) {
           logger.error(`HTTP Scraper: Error fetching page ${start}`, error);
 
+          // Track consecutive errors (LESSON LEARNED from Python)
+          this.stats.consecutiveErrors++;
+          this.stats.errorCount++;
+
           // Fail immediately on CAPTCHA
           if (error.message?.toLowerCase().includes('captcha')) {
+            logger.error(
+              `HTTP Scraper: CAPTCHA error (consecutive: ${this.stats.consecutiveErrors}) - failing strategy`
+            );
             throw error;
           }
 
           // Fail immediately on 403 Forbidden (blocked by Google)
           if (error.response?.status === 403 || error.status === 403) {
-            throw new Error(`HTTP Scraper blocked by Google Scholar (403 Forbidden) - failing over to browser strategy`);
+            logger.error(
+              `HTTP Scraper: 403 Forbidden (consecutive: ${this.stats.consecutiveErrors}) - blocked by Google Scholar`
+            );
+            throw new Error(
+              `HTTP Scraper blocked by Google Scholar (403 Forbidden) - failing over to browser strategy`
+            );
           }
 
-          // Fail immediately on too many 429 errors (rate limited)
+          // Fail immediately on 429 (rate limited)
           if (error.response?.status === 429 || error.status === 429) {
+            logger.error(
+              `HTTP Scraper: 429 Rate Limited (consecutive: ${this.stats.consecutiveErrors}) - too many requests`
+            );
             throw new Error(`HTTP Scraper rate limited (429) - failing over to browser strategy`);
           }
 
-          // For other errors, retry a few times before giving up
-          this.stats.errorCount++;
-          if (this.stats.errorCount > 5) {
-            throw new Error(`HTTP Scraper: Too many errors (${this.stats.errorCount}) - failing over`);
+          // LESSON LEARNED: Fail after 5 consecutive errors (not total)
+          if (this.stats.consecutiveErrors >= 5) {
+            logger.error(
+              `HTTP Scraper: Too many consecutive errors (${this.stats.consecutiveErrors}) - failing strategy`
+            );
+            throw new Error(
+              `HTTP Scraper: ${this.stats.consecutiveErrors} consecutive errors - failing over`
+            );
           }
 
+          // LESSON LEARNED: Wait 20 seconds after errors (Python used 15, we go slower)
+          logger.warn(
+            `HTTP Scraper: Error ${this.stats.consecutiveErrors}/5, waiting 20s before retry...`
+          );
           start += 10;
-          await new Promise((resolve) => setTimeout(resolve, 15000)); // Wait longer after error
+          await new Promise((resolve) => setTimeout(resolve, 20000));
         }
       }
     }
