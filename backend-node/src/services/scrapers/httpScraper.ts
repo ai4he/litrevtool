@@ -22,6 +22,7 @@ interface ScraperStats {
   successCount: number;
   failureCount: number;
   captchaCount: number;
+  errorCount: number;
 }
 
 export class HttpScholarScraper {
@@ -37,6 +38,7 @@ export class HttpScholarScraper {
       successCount: 0,
       failureCount: 0,
       captchaCount: 0,
+      errorCount: 0,
     };
     this.lastRequestTime = 0;
 
@@ -282,9 +284,28 @@ export class HttpScholarScraper {
           start += 10;
         } catch (error: any) {
           logger.error(`HTTP Scraper: Error fetching page ${start}`, error);
+
+          // Fail immediately on CAPTCHA
           if (error.message?.toLowerCase().includes('captcha')) {
-            throw error; // Fail immediately on CAPTCHA
+            throw error;
           }
+
+          // Fail immediately on 403 Forbidden (blocked by Google)
+          if (error.response?.status === 403 || error.status === 403) {
+            throw new Error(`HTTP Scraper blocked by Google Scholar (403 Forbidden) - failing over to browser strategy`);
+          }
+
+          // Fail immediately on too many 429 errors (rate limited)
+          if (error.response?.status === 429 || error.status === 429) {
+            throw new Error(`HTTP Scraper rate limited (429) - failing over to browser strategy`);
+          }
+
+          // For other errors, retry a few times before giving up
+          this.stats.errorCount++;
+          if (this.stats.errorCount > 5) {
+            throw new Error(`HTTP Scraper: Too many errors (${this.stats.errorCount}) - failing over`);
+          }
+
           start += 10;
           await new Promise((resolve) => setTimeout(resolve, 15000)); // Wait longer after error
         }
