@@ -20,7 +20,7 @@ api.interceptors.request.use((config) => {
 
 // Auth API
 export const authAPI = {
-  googleLogin: (token) => api.post('/auth/google', null, { params: { token } }),
+  googleLogin: (token) => api.post('/auth/google', { token }),
   getCurrentUser: () => api.get('/auth/me'),
 };
 
