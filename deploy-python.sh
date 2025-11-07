@@ -1,13 +1,30 @@
 #!/bin/bash
 
-# LitRevTool Deployment Script
-# This script automates the complete deployment process
+# LitRevTool Python Backend Deployment Script (DEPRECATED)
+# This script is for the OLD Python backend (FastAPI + Celery)
+#
+# WARNING: The Python backend has been replaced with Node.js backend
+# For new deployments, use: ./deploy-node.sh
+#
+# This script is kept for emergency rollback purposes only.
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "   LitRevTool Deployment Script"
+echo "   LitRevTool Python Backend Deployment"
+echo "   ⚠️  DEPRECATED - Use deploy-node.sh"
 echo "=========================================="
+echo ""
+echo "WARNING: You are deploying the OLD Python backend."
+echo "The recommended deployment is the Node.js backend."
+echo ""
+read -p "Are you sure you want to continue? (y/N) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]
+then
+    echo "Deployment cancelled. Use ./deploy-node.sh instead."
+    exit 1
+fi
 echo ""
 
 # Color codes for output
