@@ -18,7 +18,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
   logger.info(`Running search job: ${jobId}`);
 
   const scraper = new MultiStrategyScholarScraper({
-    useTor: false,
+    useTor: config.USE_TOR, // Use Tor if enabled in .env
     headless: true,
     jobId,
     screenshotDir: path.join(config.UPLOAD_DIR, 'screenshots'),

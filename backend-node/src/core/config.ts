@@ -56,6 +56,7 @@ export const config = {
   },
 
   // Scraping
+  USE_TOR: process.env.USE_TOR === 'true', // Enable Tor proxy for improved success rate
   MAX_CONCURRENT_SCRAPERS: parseInt(process.env.MAX_CONCURRENT_SCRAPERS || '3', 10),
   SCRAPER_TIMEOUT: parseInt(process.env.SCRAPER_TIMEOUT || '300', 10) * 1000, // 5 minutes in ms
   SCRAPER_RETRY_ATTEMPTS: parseInt(process.env.SCRAPER_RETRY_ATTEMPTS || '5', 10),
