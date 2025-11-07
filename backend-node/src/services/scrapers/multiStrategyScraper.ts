@@ -194,8 +194,9 @@ export class MultiStrategyScholarScraper {
       })
     );
 
-    // Strategy order (default: HTTP first, then Playwright as fallback)
-    this.strategyOrder = options.strategyOrder || ['http', 'playwright'];
+    // Strategy order (default: Playwright first for reliability, then HTTP as backup)
+    // CHANGED: After Tor testing, Playwright is more reliable than HTTP for avoiding CAPTCHAs
+    this.strategyOrder = options.strategyOrder || ['playwright', 'http'];
 
     // Filter out unavailable strategies
     this.strategyOrder = this.strategyOrder.filter((name) => {

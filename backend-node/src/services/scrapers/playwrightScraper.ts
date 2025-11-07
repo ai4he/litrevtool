@@ -43,7 +43,13 @@ export class PlaywrightScholarScraper {
   async initialize(): Promise<void> {
     const launchOptions: any = {
       headless: this.headless,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled'],
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-web-security', // Help with CORS issues
+        '--disable-features=IsolateOrigins,site-per-process', // Help with Scholar
+      ],
     };
 
     // Add Tor proxy if enabled
@@ -55,19 +61,32 @@ export class PlaywrightScholarScraper {
     }
 
     this.browser = await chromium.launch(launchOptions);
-    this.page = await this.browser.newPage();
-
-    // Set realistic viewport
-    await this.page.setViewportSize({ width: 1920, height: 1080 });
-
-    // Set user agent
-    await this.page.setExtraHTTPHeaders({
-      'User-Agent':
+    const context = await this.browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      extraHTTPHeaders: {
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
     });
 
-    logger.info('Playwright: Initialized');
+    this.page = await context.newPage();
+
+    // Hide automation indicators (script runs in browser context)
+    await this.page.addInitScript(() => {
+      // @ts-ignore - This runs in browser context
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      // @ts-ignore
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      // @ts-ignore
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+      // @ts-ignore
+      window.chrome = { runtime: {} };
+    });
+
+    logger.info('Playwright: Initialized with stealth mode');
   }
 
   private async takeScreenshot(label: string): Promise<void> {
@@ -185,8 +204,15 @@ export class PlaywrightScholarScraper {
             if (options.endYear) url += `&as_yhi=${options.endYear}`;
           }
 
-          // Navigate
+          // Navigate (human-like wait)
           await this.page!.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+
+          // Human-like behavior: scroll and wait
+          await this.page!.evaluate(() => {
+            // @ts-ignore - Browser context
+            window.scrollBy(0, window.innerHeight / 2);
+          });
+          await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
 
           // Take screenshot
           await this.takeScreenshot(`year_${year || 'all'}_page_${start / 10}`);
@@ -236,8 +262,10 @@ export class PlaywrightScholarScraper {
             break;
           }
 
-          // Rate limiting
-          await new Promise((resolve) => setTimeout(resolve, 3000 + Math.random() * 2000));
+          // Rate limiting - VERY slow to avoid detection (8-15 seconds like Python)
+          const delay = 8000 + Math.random() * 7000;
+          logger.info(`Playwright: Waiting ${(delay / 1000).toFixed(1)}s before next page...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
 
           start += 10;
         } catch (error: any) {
@@ -246,7 +274,8 @@ export class PlaywrightScholarScraper {
             throw error;
           }
           start += 10;
-          await new Promise((resolve) => setTimeout(resolve, 10000));
+          // Wait even longer after errors (20 seconds)
+          await new Promise((resolve) => setTimeout(resolve, 20000));
         }
       }
     }
