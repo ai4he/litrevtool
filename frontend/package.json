@@ -17,6 +17,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:fast": "GENERATE_SOURCEMAP=false INLINE_RUNTIME_CHUNK=false IMAGE_INLINE_SIZE_LIMIT=0 TSC_COMPILE_ON_ERROR=true react-scripts build",
     "build:prod": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=512\" REACT_APP_API_URL=https://litrev.haielab.org react-scripts build",
     "test": "react-scripts test",
     "test:ci": "react-scripts test --coverage --watchAll=false --ci",
