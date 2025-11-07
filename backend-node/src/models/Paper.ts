@@ -39,6 +39,28 @@ export class Paper extends Model<PaperAttributes, PaperCreationAttributes> imple
   public readonly createdAt!: Date;
 }
 
+// Add toJSON method to convert camelCase to snake_case for API responses
+Paper.prototype.toJSON = function () {
+  const values = Object.assign({}, this.get());
+
+  return {
+    id: values.id,
+    search_job_id: values.searchJobId,
+    title: values.title,
+    authors: values.authors,
+    year: values.year,
+    abstract: values.abstract,
+    source: values.source,
+    citations: values.citations,
+    url: values.url,
+    doi: values.doi,
+    keywords: values.keywords,
+    publisher: values.publisher,
+    semantic_score: values.semanticScore,
+    created_at: values.createdAt,
+  };
+};
+
 Paper.init(
   {
     id: {

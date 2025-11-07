@@ -91,6 +91,43 @@ export class SearchJob
   public completedAt?: Date;
 }
 
+// Add toJSON method to convert camelCase to snake_case for API responses
+SearchJob.prototype.toJSON = function () {
+  const values = Object.assign({}, this.get());
+
+  return {
+    id: values.id,
+    user_id: values.userId,
+    name: values.name,
+    keywords_include: values.keywordsInclude,
+    keywords_exclude: values.keywordsExclude,
+    semantic_criteria: values.semanticCriteria,
+    semantic_batch_mode: values.semanticBatchMode,
+    generate_latex: values.generateLatex,
+    start_year: values.startYear,
+    end_year: values.endYear,
+    max_results: values.maxResults,
+    status: values.status,
+    status_message: values.statusMessage,
+    progress: values.progress,
+    total_papers_found: values.totalPapersFound,
+    papers_processed: values.papersProcessed,
+    last_checkpoint: values.lastCheckpoint,
+    error_message: values.errorMessage,
+    retry_count: values.retryCount,
+    celery_task_id: values.celeryTaskId,
+    csv_file_path: values.csvFilePath,
+    prisma_diagram_path: values.prismaDiagramPath,
+    latex_file_path: values.latexFilePath,
+    bibtex_file_path: values.bibtexFilePath,
+    prisma_metrics: values.prismaMetrics,
+    created_at: values.createdAt,
+    updated_at: values.updatedAt,
+    started_at: values.startedAt,
+    completed_at: values.completedAt,
+  };
+};
+
 SearchJob.init(
   {
     id: {
