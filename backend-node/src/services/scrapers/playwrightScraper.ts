@@ -1,11 +1,14 @@
 /**
  * Enhanced Playwright-based Google Scholar Scraper
  * FALLBACK 2 - Most reliable but resource-intensive
+ *
+ * Features Tor circuit rotation for dynamic IP changes when blocked
  */
 import { chromium, Browser, Page } from 'playwright';
 import logger from '../../core/logger';
 import path from 'path';
 import fs from 'fs';
+import { rotateTorCircuit } from '../../utils/torControl';
 
 interface Paper {
   title: string;
@@ -27,6 +30,7 @@ export class PlaywrightScholarScraper {
   private screenshotDir?: string;
   private successCount: number = 0;
   private failureCount: number = 0;
+  private requestCount: number = 0; // Track requests for proactive rotation
 
   constructor(options: {
     headless?: boolean;
@@ -204,6 +208,18 @@ export class PlaywrightScholarScraper {
             if (options.endYear) url += `&as_yhi=${options.endYear}`;
           }
 
+          // Proactive Tor circuit rotation (Python strategy: every 10-20 requests)
+          if (this.useTor && this.requestCount > 0 && this.requestCount % 15 === 0) {
+            logger.info(`Playwright: Rotating Tor circuit after ${this.requestCount} requests (proactive)`);
+            try {
+              await rotateTorCircuit();
+            } catch (error) {
+              logger.warn('Playwright: Proactive circuit rotation failed, continuing');
+            }
+          }
+
+          this.requestCount++;
+
           // Navigate (human-like wait)
           await this.page!.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
 
@@ -220,8 +236,22 @@ export class PlaywrightScholarScraper {
           // Check for CAPTCHA
           const content = await this.page!.content();
           if (content.toLowerCase().includes('captcha') || this.page!.url().includes('sorry')) {
-            logger.warn('Playwright: CAPTCHA detected');
+            logger.warn('Playwright: CAPTCHA detected - rotating Tor circuit');
             await this.takeScreenshot('captcha');
+
+            // Rotate Tor circuit to get new IP before failing
+            if (this.useTor) {
+              logger.info('Playwright: Attempting Tor circuit rotation to bypass CAPTCHA...');
+              try {
+                await rotateTorCircuit();
+                logger.info('Playwright: New Tor IP obtained, waiting 30s before retry...');
+                await new Promise((resolve) => setTimeout(resolve, 30000));
+                // Don't throw error yet, let the retry mechanism handle it
+              } catch (error) {
+                logger.error('Playwright: Circuit rotation failed');
+              }
+            }
+
             throw new Error('CAPTCHA detected');
           }
 
@@ -272,11 +302,23 @@ export class PlaywrightScholarScraper {
           start += 10;
         } catch (error: any) {
           logger.error(`Playwright: Error on page ${start}`, error);
+
+          // Rotate circuit on errors if using Tor
+          if (this.useTor) {
+            logger.info('Playwright: Rotating Tor circuit after error...');
+            try {
+              await rotateTorCircuit();
+            } catch (rotError) {
+              logger.warn('Playwright: Circuit rotation failed after error');
+            }
+          }
+
           if (error.message?.toLowerCase().includes('captcha')) {
-            // Don't retry on CAPTCHA - research shows 2hr wait needed
-            logger.error('Playwright: CAPTCHA detected - job should wait 2 hours before retry');
+            // CAPTCHA after circuit rotation - give up
+            logger.error('Playwright: CAPTCHA persists after rotation - failing strategy');
             throw error;
           }
+
           start += 10;
           // Wait 2 minutes after errors (research-proven recovery time)
           logger.info('Playwright: Waiting 2 minutes after error (recovery time)...');

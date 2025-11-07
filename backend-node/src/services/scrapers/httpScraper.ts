@@ -1,11 +1,14 @@
 /**
  * HTTP-based Google Scholar Scraper using Axios + Cheerio
  * FALLBACK 1 - Lightweight and fast with user agent rotation
+ *
+ * Features Tor circuit rotation for dynamic IP changes when blocked
  */
 import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
 import { SocksProxyAgent } from 'socks-proxy-agent';
 import logger from '../../core/logger';
+import { rotateTorCircuit } from '../../utils/torControl';
 
 interface Paper {
   title: string;
@@ -311,21 +314,51 @@ export class HttpScholarScraper {
             throw error;
           }
 
-          // Fail immediately on 403 Forbidden (blocked by Google)
+          // On 403 Forbidden - try rotating Tor circuit first
           if (error.response?.status === 403 || error.status === 403) {
             logger.error(
               `HTTP Scraper: 403 Forbidden (consecutive: ${this.stats.consecutiveErrors}) - blocked by Google Scholar`
             );
+
+            if (this.useTor) {
+              logger.info('HTTP Scraper: Attempting Tor circuit rotation to bypass 403...');
+              try {
+                await rotateTorCircuit();
+                logger.info('HTTP Scraper: New IP obtained, continuing with 45s delay');
+                await new Promise((resolve) => setTimeout(resolve, 45000));
+                // Continue to next iteration instead of throwing
+                start += 10;
+                continue;
+              } catch (rotError) {
+                logger.error('HTTP Scraper: Circuit rotation failed, failing over');
+              }
+            }
+
             throw new Error(
               `HTTP Scraper blocked by Google Scholar (403 Forbidden) - failing over to browser strategy`
             );
           }
 
-          // Fail immediately on 429 (rate limited)
+          // On 429 Rate Limited - rotate circuit and slow down
           if (error.response?.status === 429 || error.status === 429) {
             logger.error(
               `HTTP Scraper: 429 Rate Limited (consecutive: ${this.stats.consecutiveErrors}) - too many requests`
             );
+
+            if (this.useTor) {
+              logger.info('HTTP Scraper: Attempting Tor circuit rotation to bypass 429...');
+              try {
+                await rotateTorCircuit();
+                logger.info('HTTP Scraper: New IP obtained, waiting 60s before retry');
+                await new Promise((resolve) => setTimeout(resolve, 60000));
+                // Continue to next iteration instead of throwing
+                start += 10;
+                continue;
+              } catch (rotError) {
+                logger.error('HTTP Scraper: Circuit rotation failed, failing over');
+              }
+            }
+
             throw new Error(`HTTP Scraper rate limited (429) - failing over to browser strategy`);
           }
 
