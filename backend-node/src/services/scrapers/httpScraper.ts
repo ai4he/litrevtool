@@ -89,11 +89,14 @@ export class HttpScholarScraper {
     const now = Date.now();
     if (this.lastRequestTime > 0) {
       const timeSinceLastadded = now - this.lastRequestTime;
-      const minDelay = 5000 + Math.random() * 5000; // 5-10 seconds
+      // RESEARCH-PROVEN: 45 seconds for Google Scholar scraping
+      // Community reports: 3+ days uninterrupted scraping with 45s delays
+      // See docs/GOOGLE_SCHOLAR_SCRAPING_RESEARCH.md
+      const minDelay = 45000; // 45 seconds (proven successful)
 
       if (timeSinceLastadded < minDelay) {
         const waitTime = minDelay - timeSinceLastadded;
-        logger.debug(`HTTP Scraper: Rate limit delay ${(waitTime / 1000).toFixed(2)}s`);
+        logger.info(`HTTP Scraper: Rate limit delay ${(waitTime / 1000).toFixed(1)}s (research-proven)`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }

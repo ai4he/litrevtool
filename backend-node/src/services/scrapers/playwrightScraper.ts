@@ -262,21 +262,33 @@ export class PlaywrightScholarScraper {
             break;
           }
 
-          // Rate limiting - VERY slow to avoid detection (8-15 seconds like Python)
-          const delay = 8000 + Math.random() * 7000;
-          logger.info(`Playwright: Waiting ${(delay / 1000).toFixed(1)}s before next page...`);
+          // Rate limiting - RESEARCH-PROVEN: 45 seconds for 3+ days uninterrupted scraping
+          // Community consensus: 45s avoids ALL CAPTCHAs and rate limits
+          // See docs/GOOGLE_SCHOLAR_SCRAPING_RESEARCH.md for evidence
+          const delay = 45000; // 45 seconds (proven successful)
+          logger.info(`Playwright: Waiting ${delay / 1000}s before next page (research-proven delay)...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
 
           start += 10;
         } catch (error: any) {
           logger.error(`Playwright: Error on page ${start}`, error);
           if (error.message?.toLowerCase().includes('captcha')) {
+            // Don't retry on CAPTCHA - research shows 2hr wait needed
+            logger.error('Playwright: CAPTCHA detected - job should wait 2 hours before retry');
             throw error;
           }
           start += 10;
-          // Wait even longer after errors (20 seconds)
-          await new Promise((resolve) => setTimeout(resolve, 20000));
+          // Wait 2 minutes after errors (research-proven recovery time)
+          logger.info('Playwright: Waiting 2 minutes after error (recovery time)...');
+          await new Promise((resolve) => setTimeout(resolve, 120000));
         }
+      }
+
+      // Wait 60 seconds between years to allow Tor circuit rotation
+      const yearIndex = years.findIndex(y => y === year);
+      if (year && yearIndex >= 0 && yearIndex < years.length - 1) {
+        logger.info('Playwright: Waiting 60s for Tor circuit rotation before next year...');
+        await new Promise((resolve) => setTimeout(resolve, 60000));
       }
     }
 
