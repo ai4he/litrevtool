@@ -278,14 +278,23 @@ function Dashboard() {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4">Dashboard</Typography>
-          <Box>
+      <Box sx={{ mt: { xs: 2, sm: 4 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
+        <Box sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: { xs: 2, sm: 0 },
+          mb: 3
+        }}>
+          <Typography variant="h4" sx={{ fontSize: { xs: '1.75rem', sm: '2.125rem' } }}>
+            Dashboard
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
             <Button
               variant="outlined"
-              sx={{ mr: 2 }}
               onClick={handleLogout}
+              fullWidth={{ xs: true, sm: false }}
             >
               Logout
             </Button>
@@ -293,6 +302,7 @@ function Dashboard() {
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setOpenDialog(true)}
+              fullWidth={{ xs: true, sm: false }}
             >
               New Search
             </Button>
@@ -331,9 +341,16 @@ function Dashboard() {
           ) : (
             jobs.map((job) => (
               <Grid item xs={12} md={6} key={job.id}>
-                <Paper sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
-                    <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+                  <Box sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'start' },
+                    gap: { xs: 1, sm: 0 },
+                    mb: 2
+                  }}>
+                    <Typography variant="h6" sx={{ flexGrow: 1, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                       {job.name}
                     </Typography>
                     <Chip
@@ -379,17 +396,22 @@ function Dashboard() {
 
                       {/* Current Activity */}
                       {job.last_checkpoint && (
-                        <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1 }}>
-                          <Typography variant="caption" color="primary" fontWeight="bold">
+                        <Box sx={{
+                          mt: 2,
+                          p: { xs: 1, sm: 1.5 },
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          borderRadius: 1
+                        }}>
+                          <Typography variant="caption" color="primary" fontWeight="bold" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             🔍 Currently Processing:
                           </Typography>
-                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                          <Typography variant="body2" sx={{ mt: 0.5, fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                             {job.last_checkpoint.last_year_completed
                               ? `Year ${parseInt(job.last_checkpoint.last_year_completed) + 1}`
                               : 'Initializing...'}
                           </Typography>
                           {job.last_checkpoint.papers_collected && (
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                               📄 {job.last_checkpoint.papers_collected} papers collected so far
                             </Typography>
                           )}
@@ -397,12 +419,18 @@ function Dashboard() {
                       )}
 
                       {/* Time Estimation */}
-                      <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="caption" color="textSecondary">
+                      <Box sx={{
+                        mt: 1,
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between',
+                        gap: { xs: 0.5, sm: 0 }
+                      }}>
+                        <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                           ⏱️ Started: {job.started_at ? new Date(job.started_at).toLocaleTimeString() : 'N/A'}
                         </Typography>
                         {job.progress > 0 && job.started_at && (
-                          <Typography variant="caption" color="textSecondary">
+                          <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             ⏳ Est. remaining: {(() => {
                               const elapsed = Date.now() - new Date(job.started_at).getTime();
                               const rate = job.progress / elapsed;
@@ -417,19 +445,33 @@ function Dashboard() {
 
                       {/* Real-time Status Message */}
                       {job.status_message && (
-                        <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(25, 118, 210, 0.08)', borderRadius: 1, border: '1px solid', borderColor: 'primary.light' }}>
-                          <Typography variant="caption" color="primary.main" fontWeight="bold" sx={{ display: 'block', mb: 0.5 }}>
+                        <Box sx={{
+                          mt: 2,
+                          p: { xs: 1, sm: 1.5 },
+                          backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'primary.light'
+                        }}>
+                          <Typography variant="caption" color="primary.main" fontWeight="bold" sx={{ display: 'block', mb: 0.5, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             🔄 Current Status
                           </Typography>
-                          <Typography variant="body2" color="textPrimary">
+                          <Typography variant="body2" color="textPrimary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                             {job.status_message}
                           </Typography>
                         </Box>
                       )}
 
                       {/* Browser Screenshot */}
-                      <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                      <Box sx={{
+                        mt: 2,
+                        p: { xs: 1, sm: 1.5 },
+                        backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}>
+                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                           📸 Live Browser View
                         </Typography>
                         <Box
@@ -477,25 +519,40 @@ function Dashboard() {
                       </Box>
 
                       {/* Live Papers Display for Running Jobs */}
-                      <Box sx={{ mt: 2, p: 1.5, backgroundColor: 'rgba(0, 0, 0, 0.03)', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                      <Box sx={{
+                        mt: 2,
+                        p: { xs: 1, sm: 1.5 },
+                        backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}>
+                        <Typography variant="caption" color="textSecondary" fontWeight="bold" sx={{ display: 'block', mb: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                           📄 Papers Collected ({jobPapers[job.id]?.length || 0} papers)
                         </Typography>
                         {jobPapers[job.id] && jobPapers[job.id].length > 0 ? (
-                          <List dense sx={{ maxHeight: 300, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider', mt: 1 }}>
+                          <List dense sx={{
+                            maxHeight: { xs: 200, sm: 300 },
+                            overflow: 'auto',
+                            bgcolor: 'background.paper',
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            mt: 1
+                          }}>
                             {jobPapers[job.id].slice(0, 10).map((paper, index) => (
                               <React.Fragment key={paper.id}>
                                 {index > 0 && <Divider />}
-                                <ListItem alignItems="flex-start" sx={{ py: 0.5 }}>
+                                <ListItem alignItems="flex-start" sx={{ py: { xs: 0.25, sm: 0.5 }, px: { xs: 1, sm: 2 } }}>
                                   <ListItemText
                                     primary={
-                                      <Typography variant="caption" fontWeight="bold">
+                                      <Typography variant="caption" fontWeight="bold" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                         {index + 1}. {paper.title}
                                       </Typography>
                                     }
                                     secondary={
                                       <Box component="span">
-                                        <Typography variant="caption" display="block" color="textSecondary" sx={{ fontSize: '0.7rem' }}>
+                                        <Typography variant="caption" display="block" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.7rem' } }}>
                                           {paper.authors && `${paper.authors.substring(0, 80)}${paper.authors.length > 80 ? '...' : ''}`}
                                           {paper.year && ` • ${paper.year}`}
                                           {paper.citations !== null && paper.citations !== undefined && ` • Cited: ${paper.citations}`}
@@ -545,31 +602,38 @@ function Dashboard() {
 
                       {/* PRISMA Metrics */}
                       {job.prisma_metrics && (
-                        <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(76, 175, 80, 0.08)', borderRadius: 1, border: '1px solid', borderColor: 'success.light' }}>
-                          <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ display: 'block', mb: 1 }}>
+                        <Box sx={{
+                          mt: 2,
+                          p: { xs: 1.5, sm: 2 },
+                          backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'success.light'
+                        }}>
+                          <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ display: 'block', mb: 1, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                             📊 PRISMA Methodology Metrics
                           </Typography>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                               <strong>Identified:</strong> {job.prisma_metrics.identification.records_identified} records
                             </Typography>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                               <strong>Duplicates Removed:</strong> {job.prisma_metrics.screening.records_excluded_duplicates}
                             </Typography>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                               <strong>After Deduplication:</strong> {job.prisma_metrics.screening.records_after_duplicates_removed}
                             </Typography>
                             {job.prisma_metrics.eligibility.full_text_assessed > 0 && (
                               <>
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                   <strong>Semantic Assessed:</strong> {job.prisma_metrics.eligibility.full_text_assessed}
                                 </Typography>
-                                <Typography variant="caption" color="textSecondary">
+                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                   <strong>Semantic Excluded:</strong> {job.prisma_metrics.eligibility.full_text_excluded_semantic}
                                 </Typography>
                               </>
                             )}
-                            <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ mt: 0.5 }}>
+                            <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ mt: 0.5, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                               <strong>Final Included:</strong> {job.prisma_metrics.included.studies_included} papers
                             </Typography>
                           </Box>
@@ -590,7 +654,16 @@ function Dashboard() {
                     </Alert>
                   )}
 
-                  <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                  <Box sx={{
+                    display: 'flex',
+                    gap: 1,
+                    mt: 2,
+                    flexWrap: 'wrap',
+                    '& > button': {
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      minWidth: { xs: 'auto', sm: 'fit-content' }
+                    }
+                  }}>
                     {job.status === 'running' && (
                       <Button
                         size="small"
@@ -611,7 +684,7 @@ function Dashboard() {
                           startIcon={<DownloadIcon />}
                           onClick={() => handleDownload(job.id, job.name)}
                         >
-                          Download CSV
+                          CSV
                         </Button>
                         {job.prisma_diagram_path && (
                           <Button
@@ -621,7 +694,7 @@ function Dashboard() {
                             onClick={() => handleDownloadPrismaDiagram(job.id, job.name)}
                             sx={{ borderColor: 'success.main', color: 'success.main', '&:hover': { borderColor: 'success.dark', bgcolor: 'success.light' } }}
                           >
-                            PRISMA Diagram
+                            PRISMA
                           </Button>
                         )}
                         {job.latex_file_path && (
@@ -667,8 +740,22 @@ function Dashboard() {
                         variant="outlined"
                         startIcon={expandedJobs[job.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                         onClick={() => toggleExpanded(job.id)}
+                        sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
                       >
                         {expandedJobs[job.id] ? 'Hide' : 'Show'} Papers ({jobPapers[job.id]?.length || 0})
+                      </Button>
+                    )}
+
+                    {/* Mobile version - shorter text */}
+                    {(job.status === 'running' || job.status === 'completed') && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={expandedJobs[job.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        onClick={() => toggleExpanded(job.id)}
+                        sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+                      >
+                        Papers ({jobPapers[job.id]?.length || 0})
                       </Button>
                     )}
 
@@ -694,42 +781,49 @@ function Dashboard() {
                   <Collapse in={expandedJobs[job.id]} timeout="auto" unmountOnExit>
                     <Box sx={{ mt: 2 }}>
                       <Divider sx={{ mb: 2 }} />
-                      <Typography variant="subtitle2" gutterBottom fontWeight="bold">
+                      <Typography variant="subtitle2" gutterBottom fontWeight="bold" sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
                         Extracted Papers
                       </Typography>
                       {jobPapers[job.id] && jobPapers[job.id].length > 0 ? (
-                        <List dense sx={{ maxHeight: 400, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                        <List dense sx={{
+                          maxHeight: { xs: 300, sm: 400 },
+                          overflow: 'auto',
+                          bgcolor: 'background.paper',
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'divider'
+                        }}>
                           {jobPapers[job.id].map((paper, index) => (
                             <React.Fragment key={paper.id}>
                               {index > 0 && <Divider />}
-                              <ListItem alignItems="flex-start">
+                              <ListItem alignItems="flex-start" sx={{ px: { xs: 1, sm: 2 }, py: { xs: 0.5, sm: 1 } }}>
                                 <ListItemText
                                   primary={
-                                    <Typography variant="body2" fontWeight="bold">
+                                    <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                                       {index + 1}. {paper.title}
                                     </Typography>
                                   }
                                   secondary={
                                     <Box component="span">
                                       {paper.authors && (
-                                        <Typography variant="caption" display="block" color="textSecondary">
+                                        <Typography variant="caption" display="block" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                           {paper.authors}
                                         </Typography>
                                       )}
                                       {(paper.year || paper.source) && (
-                                        <Typography variant="caption" display="block" color="textSecondary">
+                                        <Typography variant="caption" display="block" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                           {paper.year && `${paper.year}`}
                                           {paper.year && paper.source && ' • '}
                                           {paper.source}
                                         </Typography>
                                       )}
                                       {paper.citations !== null && paper.citations !== undefined && (
-                                        <Typography variant="caption" display="block" color="primary">
+                                        <Typography variant="caption" display="block" color="primary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                           Cited by: {paper.citations}
                                         </Typography>
                                       )}
                                       {paper.url && (
-                                        <Typography variant="caption" display="block">
+                                        <Typography variant="caption" display="block" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
                                           <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
                                             🔗 Link
                                           </a>
