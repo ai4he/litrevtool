@@ -143,9 +143,22 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Create New Search</DialogTitle>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          m: { xs: 2, sm: 3 },
+          maxHeight: { xs: 'calc(100% - 32px)', sm: 'calc(100% - 64px)' }
+        }
+      }}
+    >
+      <DialogTitle sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' }, pb: { xs: 1, sm: 2 } }}>
+        Create New Search
+      </DialogTitle>
+      <DialogContent sx={{ px: { xs: 2, sm: 3 } }}>
         <Box sx={{ mt: 2 }}>
           <TextField
             label="Search Name"
@@ -154,9 +167,10 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             placeholder="e.g., Machine Learning Papers 2020-2023"
             sx={{ mb: 3 }}
+            size="small"
           />
 
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
             Inclusion Keywords (at least one required)
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
@@ -206,7 +220,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             ))}
           </Box>
 
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
             Exclusion Keywords (optional)
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
@@ -218,15 +232,15 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
               onKeyPress={(e) => e.key === 'Enter' && handleAddExclude()}
               placeholder='e.g., "medical"'
             />
-            <IconButton onClick={handleAddExclude} color="secondary">
+            <IconButton onClick={handleAddExclude} color="secondary" sx={{ p: { xs: 0.5, sm: 1 } }}>
               <AddIcon />
             </IconButton>
           </Box>
           <Box sx={{ mb: 2 }}>
-            <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block' }}>
+            <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5, display: 'block', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
               Suggestions (click to add):
             </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 0.5, sm: 1 } }}>
               {exclusionSuggestions.map((suggestion, index) => (
                 <Chip
                   key={index}
@@ -238,7 +252,8 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
                   sx={{
                     cursor: 'pointer',
                     opacity: formData.keywords_exclude.includes(suggestion) ? 0.5 : 1,
-                    '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.08)' }
+                    '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.08)' },
+                    fontSize: { xs: '0.7rem', sm: '0.8125rem' }
                   }}
                   disabled={formData.keywords_exclude.includes(suggestion)}
                 />
@@ -256,7 +271,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             ))}
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}>
             <TextField
               label="Start Year (optional)"
               type="number"
@@ -264,6 +279,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
               onChange={(e) => setFormData({ ...formData, start_year: e.target.value })}
               placeholder="2020"
               sx={{ flex: 1 }}
+              size="small"
             />
             <TextField
               label="End Year (optional)"
@@ -272,6 +288,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
               onChange={(e) => setFormData({ ...formData, end_year: e.target.value })}
               placeholder="2023"
               sx={{ flex: 1 }}
+              size="small"
             />
           </Box>
 
@@ -284,6 +301,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             placeholder="Leave empty to collect all available results"
             helperText="Limit the number of papers to collect. Leave empty for unlimited."
             sx={{ mb: 3 }}
+            size="small"
           />
 
           <Divider sx={{ my: 2 }} />
@@ -302,7 +320,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
 
           {formData.use_semantic && (
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
+              <Typography variant="body2" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                 Semantic filtering uses AI to understand paper content beyond keywords
               </Typography>
               <TextField
@@ -316,6 +334,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
                 }
                 placeholder="e.g., papers with practical applications and case studies"
                 sx={{ mb: 2 }}
+                size="small"
               />
               <TextField
                 label="Semantic Exclusion Criteria (optional)"
@@ -328,6 +347,7 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
                 }
                 placeholder="e.g., purely theoretical papers without experiments"
                 sx={{ mb: 2 }}
+                size="small"
               />
               <FormControlLabel
                 control={
@@ -377,15 +397,17 @@ function CreateJobDialog({ open, onClose, onSubmit }) {
             }
           />
 
-          <Typography variant="caption" color="textSecondary" sx={{ mt: 2, display: 'block' }}>
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 2, display: 'block', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
             Note: The search will run in the background. You'll receive an email when it's complete.
             By splitting searches by year, we can extract more than 1000 papers total.
           </Typography>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
-        <Button onClick={handleSubmit} variant="contained">
+      <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 2 }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+        <Button onClick={handleClose} fullWidth={{ xs: true, sm: false }} sx={{ order: { xs: 2, sm: 1 } }}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" fullWidth={{ xs: true, sm: false }} sx={{ order: { xs: 1, sm: 2 } }}>
           Start Search
         </Button>
       </DialogActions>
