@@ -32,7 +32,9 @@
     "debug:screenshots": "echo '📸 Recent Screenshots:\n' && ls -lht backend/uploads/screenshots/ 2>/dev/null | head -10 || echo 'No screenshots found'",
     "debug:job": "cd backend-node && node ../debug-job.js",
     "cli": "bash -c 'cd backend && source venv/bin/activate && python3 cli_search.py \"$@\"' --",
-    "cli:help": "bash -c 'cd backend && source venv/bin/activate && python3 cli_search.py --help'"
+    "cli:help": "bash -c 'cd backend && source venv/bin/activate && python3 cli_search.py --help'",
+    "cli:install": "cd cli && npm install && npm link && echo '✅ CLI installed! Use \"litrev\" command'",
+    "cli:uninstall": "cd cli && npm unlink -g @litrevtool/cli && echo '✅ CLI uninstalled'"
   },
   "keywords": [
     "literature-review",
