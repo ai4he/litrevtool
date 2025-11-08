@@ -41,7 +41,17 @@
     "electron:build": "echo '📦 Building Electron app...' && cd frontend && npm run build && cd ../electron && npm run build && echo '✅ Electron app built successfully! Check electron/dist/'",
     "electron:build:mac": "cd frontend && npm run build && cd ../electron && npm run build:mac",
     "electron:build:win": "cd frontend && npm run build && cd ../electron && npm run build:win",
-    "electron:build:linux": "cd frontend && npm run build && cd ../electron && npm run build:linux"
+    "electron:build:linux": "cd frontend && npm run build && cd ../electron && npm run build:linux",
+    "mobile:install": "echo '📱 Installing mobile dependencies...' && cd frontend && npm install && echo '✅ Mobile dependencies installed!'",
+    "mobile:init": "cd frontend && npm run mobile:init",
+    "mobile:add:ios": "cd frontend && npm run mobile:add:ios && echo '✅ iOS platform added! Open in Xcode: npm run mobile:open:ios'",
+    "mobile:add:android": "cd frontend && npm run mobile:add:android && echo '✅ Android platform added! Open in Android Studio: npm run mobile:open:android'",
+    "mobile:sync": "cd frontend && npm run build && npm run mobile:sync && echo '✅ Mobile apps synced with latest web build!'",
+    "mobile:build:ios": "echo '📱 Building iOS app...' && cd frontend && npm run mobile:build:ios",
+    "mobile:build:android": "echo '📱 Building Android app...' && cd frontend && npm run mobile:build:android",
+    "mobile:open:ios": "cd frontend && npm run mobile:open:ios",
+    "mobile:open:android": "cd frontend && npm run mobile:open:android",
+    "build:all": "echo '🏗️  Building all platforms from single source...' && cd frontend && npm run build && echo '✅ Web build complete!' && npm run mobile:sync && echo '✅ Mobile apps synced!' && cd ../electron && npm run build && echo '✅ Desktop app built!' && echo '\n🎉 All platforms built successfully!\n  📱 Mobile: frontend/ios, frontend/android\n  💻 Desktop: electron/dist\n  🌐 Web: frontend/build'"
   },
   "keywords": [
     "literature-review",

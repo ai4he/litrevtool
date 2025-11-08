@@ -3,6 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@capacitor/android": "^5.6.0",
+    "@capacitor/app": "^5.0.6",
+    "@capacitor/core": "^5.6.0",
+    "@capacitor/ios": "^5.6.0",
+    "@capacitor/splash-screen": "^5.0.6",
+    "@capacitor/status-bar": "^5.0.6",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.19",
@@ -14,18 +20,34 @@
     "react-router-dom": "^6.20.0",
     "react-scripts": "5.0.1"
   },
+  "devDependencies": {
+    "@capacitor/cli": "^5.6.0"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build:old": "react-scripts build",
     "build": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=512\" INLINE_RUNTIME_CHUNK=false IMAGE_INLINE_SIZE_LIMIT=0 TSC_COMPILE_ON_ERROR=true react-scripts build",
     "build:prod": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=512\" REACT_APP_API_URL=https://litrev.haielab.org react-scripts build",
+    "build:all": "npm run build && npm run mobile:sync",
     "test": "react-scripts test",
     "test:ci": "react-scripts test --coverage --watchAll=false --ci",
     "test:coverage": "react-scripts test --coverage --watchAll=false",
     "lint": "eslint src/**/*.{js,jsx}",
     "lint:fix": "eslint src/**/*.{js,jsx} --fix",
     "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\"",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "mobile:init": "npx cap init",
+    "mobile:add:ios": "npx cap add ios",
+    "mobile:add:android": "npx cap add android",
+    "mobile:sync": "npx cap sync",
+    "mobile:sync:ios": "npx cap sync ios",
+    "mobile:sync:android": "npx cap sync android",
+    "mobile:open:ios": "npx cap open ios",
+    "mobile:open:android": "npx cap open android",
+    "mobile:build:ios": "npm run build && npx cap sync ios && npx cap open ios",
+    "mobile:build:android": "npm run build && npx cap sync android && npx cap open android",
+    "mobile:run:ios": "npx cap run ios",
+    "mobile:run:android": "npx cap run android"
   },
   "eslintConfig": {
     "extends": [

@@ -69,5 +69,10 @@ backend/uploads/
 /electron/out
 /electron/node_modules
 
+# Mobile (Capacitor)
+/frontend/ios
+/frontend/android
+/frontend/.capacitor
+
 # Misc
 .cache/
