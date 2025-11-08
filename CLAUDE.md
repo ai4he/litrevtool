@@ -13,6 +13,7 @@ LitRevTool is a literature review tool that overcomes Google Scholar's 1000-pape
 ### Stack
 - **Frontend**: React + Material-UI (port 3001)
 - **Backend**: FastAPI + SQLAlchemy (port 8000)
+- **CLI**: Node.js command-line interface (uses API endpoints)
 - **Database**: SQLite (backend/litrevtool.db)
 - **Task Queue**: Celery + Redis
 - **Process Manager**: PM2 manages all services
@@ -71,6 +72,24 @@ npm start                   # Run dev server (or use PM2)
 npm run build              # Production build
 npm test                   # Run tests
 ```
+
+### CLI Tool (Node.js)
+```bash
+# Install CLI globally
+npm run cli:install         # Makes 'litrev' command available globally
+
+# Use CLI commands
+litrev --help               # Show all available commands
+litrev quickstart           # Quick start guide
+litrev create --interactive # Create search job interactively
+litrev watch <job-id>       # Watch job progress in real-time
+litrev download <job-id>    # Download results (CSV, LaTeX, BibTeX, PRISMA)
+
+# Uninstall CLI
+npm run cli:uninstall       # Remove global 'litrev' command
+```
+
+See [cli/README.md](cli/README.md) for complete CLI documentation.
 
 ## Key Application Components
 
