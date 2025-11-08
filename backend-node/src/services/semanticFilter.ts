@@ -6,6 +6,9 @@ interface Paper {
   title?: string;
   abstract?: string;
   semantic_score?: number;
+  is_excluded?: boolean;
+  exclusion_reason?: string;
+  semantic_rationale?: string;
   [key: string]: any;
 }
 
@@ -26,10 +29,15 @@ class SemanticFilter {
     batchSize: number = 10
   ): Promise<Paper[]> {
     if (!inclusionCriteria && !exclusionCriteria) {
-      return papers;
+      // If no criteria, mark all as included
+      return papers.map(p => ({
+        ...p,
+        is_excluded: false,
+        exclusion_reason: undefined
+      }));
     }
 
-    const filteredPapers: Paper[] = [];
+    const allPapers: Paper[] = [];
 
     // Process papers in batches
     for (let i = 0; i < papers.length; i += batchSize) {
@@ -44,29 +52,48 @@ class SemanticFilter {
         const response = await result.response;
         const responseText = response.text();
 
-        // Parse response to get which papers to keep
-        const keepIndices = this.parseFilterResponse(responseText, batch.length);
+        // Parse response to get decisions and rationales for each paper
+        const decisions = this.parseFilterResponseWithRationales(responseText, batch.length);
 
-        // Add kept papers to results
-        for (const idx of keepIndices) {
-          if (idx < batch.length) {
-            const paper = { ...batch[idx] };
-            paper.semantic_score = 1; // Mark as passing semantic filter
-            filteredPapers.push(paper);
+        // Mark all papers with inclusion/exclusion status and rationales
+        let includedCount = 0;
+        for (let idx = 0; idx < batch.length; idx++) {
+          const paper = { ...batch[idx] };
+          const decision = decisions[idx];
+
+          if (decision && decision.include) {
+            // Paper passes semantic filter
+            paper.semantic_score = 1;
+            paper.is_excluded = false;
+            paper.exclusion_reason = undefined;
+            paper.semantic_rationale = decision.rationale || 'Meets inclusion criteria';
+            includedCount++;
+          } else {
+            // Paper fails semantic filter
+            paper.semantic_score = 0;
+            paper.is_excluded = true;
+            paper.exclusion_reason = 'Did not meet semantic filtering criteria';
+            paper.semantic_rationale = decision?.rationale || 'Does not meet semantic filtering criteria';
           }
+
+          allPapers.push(paper);
         }
 
         logger.info(
-          `Batch ${Math.floor(i / batchSize) + 1}: Kept ${keepIndices.length}/${batch.length} papers`
+          `Batch ${Math.floor(i / batchSize) + 1}: Included ${includedCount}/${batch.length} papers, Excluded ${batch.length - includedCount}`
         );
       } catch (error) {
         logger.error(`Error in semantic filtering batch ${Math.floor(i / batchSize) + 1}:`, error);
         // On error, include all papers from this batch to be safe
-        filteredPapers.push(...batch);
+        allPapers.push(...batch.map(p => ({
+          ...p,
+          is_excluded: false,
+          exclusion_reason: 'Semantic filtering error - included by default'
+        })));
       }
     }
 
-    return filteredPapers;
+    return allPapers;
   }
 
   private createFilterPrompt(
@@ -93,12 +120,61 @@ class SemanticFilter {
       prompt += `\n${i}. Title: ${title}\n   Abstract: ${truncatedAbstract}...\n`;
     });
 
-    prompt += '\nFor each paper, determine if it should be INCLUDED based on the criteria above. ';
-    prompt += 'Respond with ONLY the numbers of papers to INCLUDE, separated by commas. ';
-    prompt += 'For example: 0,2,5,7\n';
-    prompt += 'If no papers should be included, respond with: NONE\n';
+    prompt += '\nFor each paper, provide a decision (INCLUDE or EXCLUDE) and a brief rationale (1-2 sentences). ';
+    prompt += 'Format your response as JSON array with one object per paper:\n';
+    prompt += '[\n';
+    prompt += '  {"index": 0, "decision": "INCLUDE", "rationale": "Meets inclusion criteria because..."},\n';
+    prompt += '  {"index": 1, "decision": "EXCLUDE", "rationale": "Does not meet criteria because..."}\n';
+    prompt += ']\n';
+    prompt += 'Respond ONLY with valid JSON, no other text.\n';
 
     return prompt;
+  }
+
+  private parseFilterResponseWithRationales(
+    responseText: string,
+    numPapers: number
+  ): Array<{ include: boolean; rationale: string }> {
+    try {
+      const trimmed = responseText.trim();
+
+      // Extract JSON from response (sometimes LLMs add extra text)
+      const jsonMatch = trimmed.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        logger.warn('No JSON array found in response, defaulting to include all');
+        return Array(numPapers).fill({ include: true, rationale: 'Unable to parse LLM response' });
+      }
+
+      const decisions = JSON.parse(jsonMatch[0]);
+      const result: Array<{ include: boolean; rationale: string }> = [];
+
+      // Create a map from the decisions
+      const decisionMap = new Map<number, { include: boolean; rationale: string }>();
+      for (const decision of decisions) {
+        if (typeof decision.index === 'number' && decision.index >= 0 && decision.index < numPapers) {
+          decisionMap.set(decision.index, {
+            include: decision.decision?.toUpperCase() === 'INCLUDE',
+            rationale: decision.rationale || 'No rationale provided',
+          });
+        }
+      }
+
+      // Fill in results for all papers
+      for (let i = 0; i < numPapers; i++) {
+        if (decisionMap.has(i)) {
+          result.push(decisionMap.get(i)!);
+        } else {
+          // Default to exclude if not in response
+          result.push({ include: false, rationale: 'Not evaluated by LLM' });
+        }
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Error parsing filter response with rationales:', error);
+      // On parse error, include all papers to be safe
+      return Array(numPapers).fill({ include: true, rationale: 'Error parsing LLM response - included by default' });
+    }
   }
 
   private parseFilterResponse(responseText: string, numPapers: number): number[] {

@@ -25,7 +25,11 @@ export const setToken = (token: string): void => {
 };
 
 export const removeToken = (): void => {
-  Cookies.remove(TOKEN_KEY);
+  // Remove with the same options used when setting the cookie
+  Cookies.remove(TOKEN_KEY, {
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
 };
 
 export const isAuthenticated = (): boolean => {

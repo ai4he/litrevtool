@@ -94,7 +94,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
     });
 
     // Apply semantic filter if criteria provided
-    let filteredPapers = savedPapers;
+    let includedPapers = savedPapers;
     if (job.semanticCriteria) {
       job.statusMessage = 'Applying semantic filtering with Gemini AI...';
       job.progress = 60;
@@ -113,27 +113,30 @@ export async function runSearchJob(jobId: string): Promise<void> {
         job.semanticBatchMode ? 10 : 1
       );
 
-      // Update semantic scores
+      // Update semantic scores and exclusion status for ALL papers
       for (const filteredPaper of filtered) {
         const paper = savedPapers.find((p) => p.title === filteredPaper.title);
-        if (paper && filteredPaper.semantic_score) {
-          paper.semanticScore = filteredPaper.semantic_score;
+        if (paper) {
+          paper.semanticScore = filteredPaper.semantic_score || 0;
+          paper.isExcluded = filteredPaper.is_excluded || false;
+          paper.exclusionReason = filteredPaper.exclusion_reason || undefined;
+          paper.semanticRationale = filteredPaper.semantic_rationale || undefined;
           await paper.save();
         }
       }
 
-      filteredPapers = savedPapers.filter((p) => p.semanticScore);
-      logger.info(`Semantic filtering: ${filteredPapers.length}/${savedPapers.length} papers passed`);
+      includedPapers = savedPapers.filter((p) => !p.isExcluded);
+      logger.info(`Semantic filtering: ${includedPapers.length}/${savedPapers.length} papers included, ${savedPapers.length - includedPapers.length} excluded`);
     }
 
     job.progress = 70;
     job.statusMessage = 'Generating outputs...';
     await job.save();
 
-    // Generate CSV
+    // Generate CSV with ALL papers (including excluded ones)
     logger.info('Generating CSV export...');
     const csvPath = await writePapersToCSV(
-      filteredPapers.map((p) => ({
+      savedPapers.map((p) => ({
         title: p.title,
         authors: p.authors || '',
         year: p.year,
@@ -144,6 +147,9 @@ export async function runSearchJob(jobId: string): Promise<void> {
         url: p.url || '',
         doi: p.doi || '',
         semanticScore: p.semanticScore,
+        isExcluded: p.isExcluded,
+        exclusionReason: p.exclusionReason,
+        semanticRationale: p.semanticRationale,
       })),
       jobId,
       job.name
@@ -157,7 +163,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
       identification: papers.length,
       screening: papers.length,
       eligibility: savedPapers.length,
-      included: filteredPapers.length,
+      included: includedPapers.length,
     };
     job.prismaMetrics = prismaMetrics;
 
@@ -168,12 +174,12 @@ export async function runSearchJob(jobId: string): Promise<void> {
     job.progress = 80;
     await job.save();
 
-    // Generate BibTeX file
+    // Generate BibTeX file (only included papers)
     logger.info('Generating BibTeX file...');
     const bibtexFilename = `${job.name.replace(/\s+/g, '_')}_References_${jobId}.bib`;
     const bibtexPath = path.join(config.UPLOAD_DIR, bibtexFilename);
     generateBibtexFile(
-      filteredPapers.map((p) => ({
+      includedPapers.map((p) => ({
         title: p.title,
         authors: p.authors,
         year: p.year,
@@ -198,7 +204,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
       const latexPath = path.join(config.UPLOAD_DIR, latexFilename);
 
       await generateLatexReview({
-        papers: filteredPapers.map((p) => ({
+        papers: includedPapers.map((p) => ({
           title: p.title,
           authors: p.authors,
           year: p.year,
@@ -228,7 +234,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
     job.progress = 100;
     job.status = 'completed';
     job.completedAt = new Date();
-    job.statusMessage = `Completed! Found ${filteredPapers.length} papers.`;
+    job.statusMessage = `Completed! Found ${savedPapers.length} papers (${includedPapers.length} included, ${savedPapers.length - includedPapers.length} excluded).`;
     await job.save();
 
     logger.info(`Search job ${jobId} completed successfully`);
@@ -242,7 +248,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
           user.email,
           user.name || 'User',
           job.name,
-          filteredPapers.length,
+          includedPapers.length,
           downloadUrl
         );
       } catch (emailError) {

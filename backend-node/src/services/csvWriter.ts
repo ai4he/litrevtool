@@ -14,6 +14,9 @@ interface Paper {
   url?: string;
   doi?: string;
   semanticScore?: number;
+  isExcluded?: boolean;
+  exclusionReason?: string;
+  semanticRationale?: string;
 }
 
 export async function writePapersToCSV(
@@ -37,6 +40,9 @@ export async function writePapersToCSV(
       { id: 'url', title: 'URL' },
       { id: 'doi', title: 'DOI' },
       { id: 'semanticScore', title: 'Semantic_Score' },
+      { id: 'excluded', title: 'Excluded' },
+      { id: 'exclusionReason', title: 'Exclusion_Reason' },
+      { id: 'semanticRationale', title: 'Semantic_Rationale' },
     ],
   });
 
@@ -50,7 +56,10 @@ export async function writePapersToCSV(
     abstract: paper.abstract || '',
     url: paper.url || '',
     doi: paper.doi || '',
-    semanticScore: paper.semanticScore || '',
+    semanticScore: paper.semanticScore !== undefined ? paper.semanticScore : '',
+    excluded: paper.isExcluded ? 'Yes' : 'No',
+    exclusionReason: paper.exclusionReason || '',
+    semanticRationale: paper.semanticRationale || '',
   }));
 
   await csvWriter.writeRecords(records);

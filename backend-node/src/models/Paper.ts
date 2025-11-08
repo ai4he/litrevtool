@@ -16,11 +16,14 @@ interface PaperAttributes {
   keywords?: string[];
   publisher?: string;
   semanticScore?: number;
+  isExcluded: boolean;
+  exclusionReason?: string;
+  semanticRationale?: string;
   createdAt: Date;
 }
 
 interface PaperCreationAttributes
-  extends Optional<PaperAttributes, 'id' | 'createdAt' | 'citations'> {}
+  extends Optional<PaperAttributes, 'id' | 'createdAt' | 'citations' | 'isExcluded'> {}
 
 export class Paper extends Model<PaperAttributes, PaperCreationAttributes> implements PaperAttributes {
   public id!: string;
@@ -36,6 +39,9 @@ export class Paper extends Model<PaperAttributes, PaperCreationAttributes> imple
   public keywords?: string[];
   public publisher?: string;
   public semanticScore?: number;
+  public isExcluded!: boolean;
+  public exclusionReason?: string;
+  public semanticRationale?: string;
   public readonly createdAt!: Date;
 }
 
@@ -57,6 +63,9 @@ Paper.prototype.toJSON = function () {
     keywords: values.keywords,
     publisher: values.publisher,
     semantic_score: values.semanticScore,
+    is_excluded: values.isExcluded,
+    exclusion_reason: values.exclusionReason,
+    semantic_rationale: values.semanticRationale,
     created_at: values.createdAt,
   };
 };
@@ -121,6 +130,22 @@ Paper.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: 'semantic_score',
+    },
+    isExcluded: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'is_excluded',
+    },
+    exclusionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: 'exclusion_reason',
+    },
+    semanticRationale: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      field: 'semantic_rationale',
     },
     createdAt: {
       type: DataTypes.DATE,

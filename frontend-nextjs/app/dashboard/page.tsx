@@ -91,6 +91,9 @@ interface Paper {
   abstract?: string;
   url?: string;
   semantic_score?: number;
+  is_excluded?: boolean;
+  exclusion_reason?: string;
+  semantic_rationale?: string;
 }
 
 interface JobData {
@@ -559,12 +562,22 @@ export default function Dashboard() {
                             {jobPapers[job.id].slice(0, 10).map((paper, index) => (
                               <React.Fragment key={paper.id}>
                                 {index > 0 && <Divider />}
-                                <ListItem alignItems="flex-start" sx={{ py: 0.5 }}>
+                                <ListItem alignItems="flex-start" sx={{ py: 0.5, bgcolor: paper.is_excluded ? 'rgba(211, 47, 47, 0.05)' : 'inherit' }}>
                                   <ListItemText
                                     primary={
-                                      <Typography variant="caption" fontWeight="bold">
-                                        {index + 1}. {paper.title}
-                                      </Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Typography variant="caption" fontWeight="bold">
+                                          {index + 1}. {paper.title}
+                                        </Typography>
+                                        {paper.is_excluded && (
+                                          <Chip
+                                            label="Excluded"
+                                            size="small"
+                                            color="error"
+                                            sx={{ height: 16, fontSize: '0.65rem' }}
+                                          />
+                                        )}
+                                      </Box>
                                     }
                                     secondary={
                                       <Box component="span">
@@ -573,6 +586,11 @@ export default function Dashboard() {
                                           {paper.year && ` • ${paper.year}`}
                                           {paper.citations !== null && paper.citations !== undefined && ` • Cited: ${paper.citations}`}
                                         </Typography>
+                                        {paper.semantic_rationale && (
+                                          <Typography variant="caption" display="block" color={paper.is_excluded ? 'error' : 'success.main'} sx={{ fontSize: '0.65rem', mt: 0.5, fontStyle: 'italic' }}>
+                                            💡 {paper.semantic_rationale}
+                                          </Typography>
+                                        )}
                                       </Box>
                                     }
                                   />
@@ -775,12 +793,22 @@ export default function Dashboard() {
                           {jobPapers[job.id].map((paper, index) => (
                             <React.Fragment key={paper.id}>
                               {index > 0 && <Divider />}
-                              <ListItem alignItems="flex-start">
+                              <ListItem alignItems="flex-start" sx={{ bgcolor: paper.is_excluded ? 'rgba(211, 47, 47, 0.05)' : 'inherit' }}>
                                 <ListItemText
                                   primary={
-                                    <Typography variant="body2" fontWeight="bold">
-                                      {index + 1}. {paper.title}
-                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography variant="body2" fontWeight="bold">
+                                        {index + 1}. {paper.title}
+                                      </Typography>
+                                      {paper.is_excluded && (
+                                        <Chip
+                                          label="Excluded"
+                                          size="small"
+                                          color="error"
+                                          sx={{ height: 18, fontSize: '0.7rem' }}
+                                        />
+                                      )}
+                                    </Box>
                                   }
                                   secondary={
                                     <Box component="span">
@@ -799,6 +827,11 @@ export default function Dashboard() {
                                       {paper.citations !== null && paper.citations !== undefined && (
                                         <Typography variant="caption" display="block" color="primary">
                                           Cited by: {paper.citations}
+                                        </Typography>
+                                      )}
+                                      {paper.semantic_rationale && (
+                                        <Typography variant="caption" display="block" color={paper.is_excluded ? 'error' : 'success.main'} sx={{ mt: 0.5, fontStyle: 'italic', backgroundColor: paper.is_excluded ? 'rgba(211, 47, 47, 0.08)' : 'rgba(76, 175, 80, 0.08)', p: 0.5, borderRadius: 0.5 }}>
+                                          💡 {paper.semantic_rationale}
                                         </Typography>
                                       )}
                                       {paper.url && (
