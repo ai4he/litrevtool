@@ -105,7 +105,7 @@ interface JobData {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -286,9 +286,9 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    // Clear token and redirect to home
-    localStorage.removeItem('token');
-    router.push('/');
+    // Clear auth state and redirect to login
+    logout();
+    router.push('/login');
   };
 
   // Fetch papers for running/completed jobs automatically

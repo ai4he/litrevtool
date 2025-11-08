@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { jobsAPI } from '../services/api';
 import {
@@ -32,6 +33,7 @@ import CreateJobDialog from './CreateJobDialog';
 
 function Dashboard() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -69,6 +71,11 @@ function Dashboard() {
       console.error('Error creating job:', error);
       setError('Failed to create job');
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const handleDeleteJob = async (jobId) => {
@@ -278,7 +285,7 @@ function Dashboard() {
             <Button
               variant="outlined"
               sx={{ mr: 2 }}
-              onClick={logout}
+              onClick={handleLogout}
             >
               Logout
             </Button>
