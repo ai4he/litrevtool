@@ -9,6 +9,7 @@
     "@capacitor/ios": "^5.6.0",
     "@capacitor/splash-screen": "^5.0.6",
     "@capacitor/status-bar": "^5.0.6",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.19",
@@ -26,7 +27,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build:old": "react-scripts build",
-    "build": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=512\" INLINE_RUNTIME_CHUNK=false IMAGE_INLINE_SIZE_LIMIT=0 TSC_COMPILE_ON_ERROR=true react-scripts build",
+    "build": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=768\" INLINE_RUNTIME_CHUNK=false IMAGE_INLINE_SIZE_LIMIT=0 TSC_COMPILE_ON_ERROR=true react-scripts build",
     "build:prod": "GENERATE_SOURCEMAP=false NODE_OPTIONS=\"--max-old-space-size=512\" REACT_APP_API_URL=https://litrev.haielab.org react-scripts build",
     "build:all": "npm run build && npm run mobile:sync",
     "test": "react-scripts test",

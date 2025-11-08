@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { App as CapApp } from '@capacitor/app';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 /**
  * Initialize mobile-specific features
@@ -21,6 +22,14 @@ export const initMobile = async () => {
   console.log('Platform:', Capacitor.getPlatform());
 
   try {
+    // Initialize Google Auth for mobile
+    GoogleAuth.initialize({
+      clientId: '337048330114-f2kimcqsu1fi4h1unmuno10cr8gcnetp.apps.googleusercontent.com',
+      scopes: ['profile', 'email'],
+      grantOfflineAccess: true,
+    });
+    console.log('Google Auth initialized');
+
     // Configure status bar
     await StatusBar.setStyle({ style: Style.Dark });
     await StatusBar.setBackgroundColor({ color: '#1976d2' });

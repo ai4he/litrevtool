@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ⚠️ **IMPORTANT NOTICE ABOUT ARCHIVED CODE**
+>
+> The `_archive/` directory contains **UNSUPPORTED** legacy code including:
+> - Python backend (FastAPI + Celery)
+> - Next.js frontend attempt
+> - Old deployment scripts and configs
+>
+> **DO NOT USE OR REFERENCE archived code.** It is for historical reference only and contains schema incompatibilities and deprecated patterns. See [_archive/README.md](_archive/README.md) for details.
+>
+> **Use only the current Node.js stack documented below.**
+
 ## Project Overview
 
 LitRevTool is a literature review tool that overcomes Google Scholar's 1000-paper limit by automatically splitting searches by year and running them in parallel. It consists of:
@@ -27,17 +38,19 @@ LitRevTool is a literature review tool that overcomes Google Scholar's 1000-pape
 - **Scraper**: Multi-strategy scraper (scholarly library, HTTP, Playwright)
 
 ### Service Layout
-Three PM2-managed services defined in `ecosystem.config.js`:
+Three PM2-managed services defined in `ecosystem.config.node.js`:
 1. `litrev-backend` - Node.js Express server with TypeScript
 2. `litrev-worker` - BullMQ worker processing scraping tasks
 3. `litrev-frontend` - React dev server
+
+Note: Old configs (`ecosystem.config.js`, `ecosystem.config.python.js`, `ecosystem.config.nextjs.js`) have been archived.
 
 ## Critical Commands
 
 ### Development Workflow
 ```bash
 # Deploy/redeploy entire application
-npm run deploy              # or ./deploy.sh
+npm run deploy              # or ./deploy-node.sh
 
 # Service management
 npm start                   # Start all services
@@ -48,7 +61,7 @@ npm run status              # Check PM2 service status
 # Logs and monitoring
 npm run logs                # All service logs
 npm run logs:backend        # Backend only
-npm run logs:celery         # Celery only
+npm run logs:worker         # Worker only
 npm run logs:frontend       # Frontend only
 npm run monit               # PM2 monitoring dashboard
 
@@ -328,7 +341,7 @@ SQLite can lock with concurrent writes. Celery is configured with `--concurrency
 ### Email Not Sending
 1. Verify SMTP credentials in `.env`
 2. Gmail requires App Password (not account password)
-3. Check logs for SMTP errors: `npm run logs:celery`
+3. Check logs for SMTP errors: `npm run logs:worker`
 
 ## Production Deployment
 
@@ -356,7 +369,7 @@ For Nginx and SSL configuration, see [docs/NGINX_SSL_SETUP.md](docs/NGINX_SSL_SE
    - Keywords: "machine learning"
    - Year range: 2023-2023 (single year for speed)
 5. Monitor progress in dashboard (auto-refreshes every 5 seconds)
-6. Check logs: `npm run logs:celery`
+6. Check logs: `npm run logs:worker`
 7. Download CSV when complete
 
 ### API Testing
@@ -401,7 +414,7 @@ npm run debug:reset-jobs   # Reset all stuck jobs to failed state
 ```bash
 npm run debug:errors       # View recent Celery errors
 npm run debug:screenshots  # List recent browser screenshots
-npm run logs:celery        # Live Celery worker logs
+npm run logs:worker        # Live worker logs
 npm run logs:backend       # Live backend API logs
 ```
 

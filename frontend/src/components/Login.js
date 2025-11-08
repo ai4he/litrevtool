@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -7,12 +9,24 @@ import {
   Paper,
   Typography,
   Box,
+  Button,
+  CircularProgress,
 } from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
 
 function Login() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
   const loginAttempted = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const isMobile = Capacitor.isNativePlatform();
+
+  // Initialize Google Auth for mobile
+  useEffect(() => {
+    if (isMobile) {
+      GoogleAuth.initialize();
+    }
+  }, [isMobile]);
 
   // Navigate to dashboard when user state is updated after login
   useEffect(() => {
@@ -22,15 +36,49 @@ function Login() {
     }
   }, [user, navigate]);
 
+  // Web OAuth handler
   const handleGoogleSuccess = async (credentialResponse) => {
     loginAttempted.current = true;
-    await login(credentialResponse.credential);
-    // Navigation will happen in useEffect when user state is updated
+    setLoading(true);
+    try {
+      await login(credentialResponse.credential);
+      // Navigation will happen in useEffect when user state is updated
+    } catch (error) {
+      console.error('Login failed:', error);
+      loginAttempted.current = false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleError = () => {
     console.error('Google login failed');
     loginAttempted.current = false;
+    setLoading(false);
+  };
+
+  // Mobile native OAuth handler
+  const handleNativeGoogleLogin = async () => {
+    loginAttempted.current = true;
+    setLoading(true);
+    try {
+      const result = await GoogleAuth.signIn();
+      console.log('Native Google Sign-In result:', result);
+
+      // Use the ID token to authenticate with backend
+      if (result.authentication?.idToken) {
+        await login(result.authentication.idToken);
+        // Navigation will happen in useEffect when user state is updated
+      } else {
+        console.error('No ID token received from native sign-in');
+        loginAttempted.current = false;
+      }
+    } catch (error) {
+      console.error('Native Google login failed:', error);
+      loginAttempted.current = false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -55,12 +103,38 @@ function Login() {
             Extract more than 1000 papers with advanced filtering and semantic analysis
           </Typography>
           <Box sx={{ mt: { xs: 3, sm: 4 }, display: 'flex', justifyContent: 'center' }}>
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              theme="outline"
-              size="large"
-            />
+            {loading ? (
+              <CircularProgress />
+            ) : isMobile ? (
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<GoogleIcon />}
+                onClick={handleNativeGoogleLogin}
+                sx={{
+                  backgroundColor: '#fff',
+                  color: '#757575',
+                  border: '1px solid #dadce0',
+                  textTransform: 'none',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  padding: '10px 12px',
+                  '&:hover': {
+                    backgroundColor: '#f8f9fa',
+                    boxShadow: '0 1px 2px 0 rgba(60,64,67,.30), 0 1px 3px 1px rgba(60,64,67,.15)',
+                  },
+                }}
+              >
+                Sign in with Google
+              </Button>
+            ) : (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                theme="outline"
+                size="large"
+              />
+            )}
           </Box>
         </Paper>
       </Box>

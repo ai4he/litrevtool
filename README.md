@@ -1,6 +1,9 @@
 # LitRevTool - Advanced Google Scholar Literature Review Tool
 
-LitRevTool is a comprehensive web application for extracting and analyzing research papers from Google Scholar. It overcomes the 1000-paper limitation of tools like Publish or Perish by intelligently splitting searches and supports advanced semantic filtering using Google Gemini AI.
+LitRevTool is a comprehensive application for extracting and analyzing research papers from Google Scholar. It overcomes the 1000-paper limitation of tools like Publish or Perish by intelligently splitting searches and supports advanced semantic filtering using Google Gemini AI.
+
+> ⚠️ **IMPORTANT**: Legacy code (Python backend, Next.js frontend, old configs) has been moved to `_archive/`.
+> **DO NOT USE archived code** - it is unsupported and for reference only. See [_archive/README.md](_archive/README.md) for details.
 
 ## Features
 
@@ -10,31 +13,36 @@ LitRevTool is a comprehensive web application for extracting and analyzing resea
 - **Parallel Searches**: Run multiple searches simultaneously
 - **Semantic Filtering**: Optional AI-powered filtering using Google Gemini API to understand paper content beyond keywords
 - **Email Notifications**: Get notified when your searches complete
-- **CSV Export**: Download results with title, authors, abstract, citations, and more
+- **Multiple Export Formats**: CSV, LaTeX, BibTeX, PRISMA diagrams
 - **Fault Tolerance**: Automatically resume failed searches from checkpoints
 - **Dashboard**: Monitor all your searches in a clean, intuitive interface
+- **Cross-Platform**: Web, Desktop (Electron), Mobile (iOS/Android), and CLI
 
-## Architecture
+## Current Architecture (Node.js Stack)
 
-The application consists of the following components:
+**Supported Platforms:**
+- **Web App**: React frontend + Node.js backend
+- **Desktop App**: Electron (Windows, macOS, Linux)
+- **Mobile App**: Capacitor (iOS, Android)
+- **CLI Tool**: Node.js command-line interface
 
-- **Frontend**: React + Material-UI dashboard
-- **Backend API**: FastAPI (Python)
+**Technology Stack:**
+- **Frontend**: React + Material-UI
+- **Backend API**: Node.js + Express + TypeScript
 - **Database**: SQLite for storing users, jobs, and papers
-- **Task Queue**: Celery + Redis for background scraping
+- **Task Queue**: BullMQ + Redis for background scraping
 - **Process Manager**: PM2 for service orchestration
-- **Scraper**: Selenium-based Google Scholar scraper
+- **Scraper**: Playwright-based Google Scholar scraper with multi-strategy fallback
 - **AI Filter**: Google Gemini API for semantic filtering
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- Node.js 16 or higher
-- Redis server
-- PM2 (installed automatically by deployment script)
-- Google OAuth 2.0 credentials (Client ID and Secret)
-- (Optional) SMTP credentials for email notifications
-- Google Gemini API key (already included: `AIzaSyDxAW82IQqw4TBb8Od0UvnXafGCYrkwyOU`)
+- **Node.js 18 or higher** (required)
+- **Redis server** (required for background jobs)
+- **PM2** (installed automatically by deployment script)
+- **Google OAuth 2.0 credentials** (Client ID and Secret)
+- **(Optional)** SMTP credentials for email notifications
+- **Google Gemini API key** (already included: `AIzaSyDxAW82IQqw4TBb8Od0UvnXafGCYrkwyOU`)
 
 ## Quick Start
 
@@ -79,39 +87,46 @@ npm run deploy
 **Option B: Manual deployment steps**
 
 ```bash
-# Install all dependencies
-npm run install:all
+# Install backend dependencies
+cd backend-node && npm install
 
-# Initialize database
-npm run setup:db
+# Build TypeScript
+npm run build
 
-# Start all services
-npm start
+# Install frontend dependencies
+cd ../frontend && npm install
+
+# Start all services with PM2
+cd ..
+pm2 start ecosystem.config.node.js
 ```
 
 **Option C: Using deployment script directly**
 
 ```bash
 # Make script executable (first time only)
-chmod +x deploy.sh
+chmod +x deploy-node.sh
 
 # Run deployment
-./deploy.sh
+./deploy-node.sh
 ```
 
 The deployment process will:
-- ✅ Check and validate all prerequisites (Python, Node.js, Redis, PM2)
-- ✅ Set up Python virtual environment and install dependencies
-- ✅ Install Node.js dependencies for the frontend
+- ✅ Check and validate all prerequisites (Node.js, Redis, PM2)
+- ✅ Install backend dependencies (Node.js + TypeScript)
+- ✅ Build TypeScript to JavaScript
+- ✅ Install Playwright browsers for scraping
+- ✅ Install frontend dependencies (React)
+- ✅ Build production frontend
 - ✅ Initialize the SQLite database
 - ✅ Configure PM2 process manager
-- ✅ Start all services (backend, celery, frontend)
+- ✅ Start all services (backend, worker, frontend)
 - ✅ Perform health checks
 
 After deployment, services will be running at:
 - Frontend: http://localhost:3001
 - Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs
+- API Documentation: http://localhost:8000/api/v1/* (REST API)
 - Redis: localhost:6379
 
 ### 4. Access the Application
@@ -143,7 +158,7 @@ npm run logs
 # View logs from specific service
 npm run logs:frontend
 npm run logs:backend
-npm run logs:celery
+npm run logs:worker
 
 # Monitor resource usage
 npm run monit
@@ -231,55 +246,64 @@ To enable, add SMTP credentials to your `.env` file.
 
 ## API Documentation
 
-Interactive API documentation is available at:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+The backend provides a RESTful API with the following endpoints:
 
 ### Key Endpoints
 
-- `POST /api/v1/auth/google` - Authenticate with Google
-- `GET /api/v1/auth/me` - Get current user
-- `POST /api/v1/jobs/` - Create search job
-- `GET /api/v1/jobs/` - List all jobs
-- `GET /api/v1/jobs/{job_id}` - Get job details
-- `GET /api/v1/jobs/{job_id}/download` - Download CSV results
-- `POST /api/v1/jobs/{job_id}/resume` - Resume failed job
+- `POST /api/v1/auth/google` - Authenticate with Google OAuth
+- `GET /api/v1/auth/me` - Get current user profile
+- `POST /api/v1/jobs` - Create new search job
+- `GET /api/v1/jobs` - List all jobs for authenticated user
+- `GET /api/v1/jobs/:id` - Get job details
+- `GET /api/v1/jobs/:id/papers` - Get papers for a job
+- `GET /api/v1/jobs/:id/download` - Download CSV results
+- `POST /api/v1/jobs/:id/resume` - Resume failed job
+- `GET /health` - Health check endpoint
 
 ## Project Structure
 
 ```
 litrevtool/
-├── backend/
-│   ├── app/
-│   │   ├── api/              # API endpoints
+├── _archive/                 # ⚠️ UNSUPPORTED legacy code (Python, Next.js, etc.)
+├── backend-node/             # Node.js + TypeScript backend
+│   ├── src/
+│   │   ├── api/              # Express API endpoints
 │   │   ├── core/             # Config and security
-│   │   ├── db/               # Database session
-│   │   ├── models/           # SQLAlchemy models
-│   │   ├── schemas/          # Pydantic schemas
+│   │   ├── db/               # Sequelize database setup
+│   │   ├── models/           # Sequelize models
 │   │   ├── services/         # Business logic
-│   │   │   ├── scholar_scraper.py    # Google Scholar scraper
-│   │   │   ├── semantic_filter.py    # Gemini AI filtering
-│   │   │   └── email_service.py      # Email notifications
-│   │   ├── tasks/            # Celery tasks
-│   │   └── main.py           # FastAPI app
-│   ├── requirements.txt      # Python dependencies
-│   ├── venv/                 # Python virtual environment
+│   │   │   ├── scholarScraper.ts    # Google Scholar scraper
+│   │   │   ├── semanticFilter.ts    # Gemini AI filtering
+│   │   │   └── emailService.ts      # Email notifications
+│   │   ├── tasks/            # BullMQ worker tasks
+│   │   └── main.ts           # Express app
+│   ├── dist/                 # Compiled JavaScript
+│   ├── package.json          # Node dependencies
 │   └── litrevtool.db         # SQLite database
-├── frontend/
+├── frontend/                 # React frontend
 │   ├── src/
 │   │   ├── components/       # React components
 │   │   ├── contexts/         # React contexts
 │   │   ├── services/         # API client
 │   │   └── App.js
 │   └── package.json          # Node dependencies
+├── mobile/                   # Capacitor mobile app (iOS/Android)
+│   ├── ios/                  # iOS Xcode project
+│   └── android/              # Android Studio project
+├── electron/                 # Electron desktop app
+│   ├── main.js               # Electron main process
+│   └── package.json          # Electron dependencies
+├── cli/                      # Node.js CLI tool
+│   ├── bin/                  # CLI executable
+│   └── commands/             # CLI commands
 ├── docs/                     # Documentation
-│   ├── SETUP.md             # Detailed setup guide
-│   ├── PM2_COMMANDS.md      # PM2 management commands
-│   └── RESET.md             # System reset guide
-├── deploy.sh                 # Automated deployment script
-├── ecosystem.config.js       # PM2 configuration
-├── package.json             # npm scripts
-└── README.md                # This file
+│   ├── SETUP.md              # Detailed setup guide
+│   ├── PM2_COMMANDS.md       # PM2 management commands
+│   └── ...
+├── deploy-node.sh            # Automated deployment script
+├── ecosystem.config.node.js  # PM2 configuration
+├── package.json              # Root npm scripts
+└── README.md                 # This file
 ```
 
 ## Troubleshooting
@@ -292,28 +316,31 @@ Google Scholar may show CAPTCHAs if scraping too aggressively. The scraper handl
 - Automatic retry with longer waits
 - Checkpoint system to resume later
 
-### Chrome/ChromeDriver Issues
+### Playwright/Browser Issues
 
-If the scraper fails to start Chrome:
+If the scraper fails to start browsers:
 
 ```bash
-# Check Chrome installation
-google-chrome --version
+# Install Playwright browsers
+cd backend-node
+npx playwright install chromium
 
-# Update webdriver
-cd backend
-source venv/bin/activate
-pip install --upgrade selenium webdriver-manager
+# Check Playwright installation
+npx playwright --version
 ```
 
 ### Service Issues
 
 ```bash
 # Check service status
-npm run status
+pm2 status
 
 # View logs
-npm run logs
+pm2 logs litrev-backend
+pm2 logs litrev-worker
+
+# Restart services
+pm2 restart all
 
 # Full system reset
 npm run reset
@@ -323,13 +350,11 @@ npm run reset
 
 ```bash
 # Backup database
-cp backend/litrevtool.db backend/litrevtool.db.backup
+cp backend-node/litrevtool.db backend-node/litrevtool.db.backup
 
-# Reset database (WARNING: deletes all data)
-rm backend/litrevtool.db
-cd backend
-source venv/bin/activate
-python3 -c "from app.db.session import engine; from app.models import Base; Base.metadata.create_all(bind=engine)"
+# Check database tables
+cd backend-node
+node -e "const {sequelize} = require('./dist/db'); sequelize.authenticate().then(() => console.log('DB connected')).catch(e => console.error(e));"
 ```
 
 ## Production Deployment
@@ -345,10 +370,10 @@ For production:
    pm2 save
    ```
 5. **Set up nginx** as reverse proxy
-6. **Scale workers** if needed (modify ecosystem.config.js)
+6. **Scale workers** if needed (modify ecosystem.config.node.js)
 7. **Set up automated backups** for SQLite database
 8. **Configure rate limiting** on the API
-9. **Monitor logs** regularly
+9. **Monitor logs** regularly with `pm2 logs`
 
 For complete production deployment instructions, see [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md) and [docs/NGINX_SSL_SETUP.md](docs/NGINX_SSL_SETUP.md).
 
@@ -401,7 +426,8 @@ For issues or questions:
 
 ## Acknowledgments
 
-- Built with FastAPI, React, and Selenium
-- Powered by Google Gemini AI
+- Built with Node.js, Express, TypeScript, React, and Playwright
+- Powered by Google Gemini AI for semantic filtering
 - Process management by PM2
+- Background jobs with BullMQ and Redis
 - Inspired by Publish or Perish by Anne-Wil Harzing
