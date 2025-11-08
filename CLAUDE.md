@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 LitRevTool is a literature review tool that overcomes Google Scholar's 1000-paper limit by automatically splitting searches by year and running them in parallel. It consists of:
 - **Web App**: React frontend with Node.js backend
 - **Desktop App**: Electron-based native application (Windows, macOS, Linux)
+- **Mobile App**: Capacitor-based hybrid app (iOS, Android) - **NEW!**
 - **CLI Tool**: Command-line interface for automation and scripting
 - **Backend**: Node.js Express server with BullMQ task queue for background scraping
 
@@ -19,6 +20,7 @@ LitRevTool is a literature review tool that overcomes Google Scholar's 1000-pape
 - **Backend**: Node.js + Express + TypeScript (port 8000)
 - **CLI**: Node.js command-line interface (uses API endpoints)
 - **Desktop App**: Electron-based desktop application (wraps React frontend)
+- **Mobile App**: Capacitor-based hybrid app (iOS + Android, wraps React frontend)
 - **Database**: SQLite (backend-node/litrevtool.db)
 - **Task Queue**: BullMQ + Redis
 - **Process Manager**: PM2 manages all services
@@ -130,6 +132,48 @@ The Electron app provides a native desktop experience:
 - **Build output**: Installers and portable apps in `electron/dist/`
 
 See [electron/README.md](electron/README.md) for complete Electron app documentation.
+
+### Mobile App (iOS + Android)
+```bash
+# Install mobile dependencies
+npm run mobile:install
+
+# Setup mobile app (first time)
+cd mobile && ./setup.sh
+
+# Add platforms
+npm run mobile:add:ios       # macOS only
+npm run mobile:add:android   # All platforms
+
+# Build and sync mobile apps
+npm run mobile:sync          # Build React + sync to mobile
+
+# Open in native IDE
+npm run mobile:open:ios      # Open in Xcode
+npm run mobile:open:android  # Open in Android Studio
+
+# Build for specific platform
+npm run mobile:build:ios     # Build + open in Xcode
+npm run mobile:build:android # Build + open in Android Studio
+
+# Build ALL platforms at once (web + mobile + desktop)
+npm run build:all
+```
+
+The Mobile app provides native iOS and Android experience:
+- **Cross-platform**: iOS and Android from single React codebase
+- **Uses existing frontend**: Wraps the same React web app (via Capacitor)
+- **Single Source Updates**: Change React code once, deploy to web + mobile + desktop
+- **Native Features**: Splash screen, status bar, back button, app lifecycle management
+- **API Modes**: Can connect to local development server or production API
+- **App Store Ready**: Can be published to Apple App Store and Google Play
+- **Build output**:
+  - iOS: `frontend/ios/` (Xcode project)
+  - Android: `frontend/android/` (Android Studio project)
+
+**Architecture**: Same React app → 3 wrappers (Web browser, Electron, Capacitor)
+
+See [mobile/README.md](mobile/README.md) for complete mobile app documentation.
 
 ## Key Application Components
 
