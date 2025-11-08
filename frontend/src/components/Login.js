@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,18 +10,27 @@ import {
 } from '@mui/material';
 
 function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+  const loginAttempted = useRef(false);
+
+  // Navigate to dashboard when user state is updated after login
+  useEffect(() => {
+    if (user && loginAttempted.current) {
+      navigate('/dashboard');
+      loginAttempted.current = false;
+    }
+  }, [user, navigate]);
 
   const handleGoogleSuccess = async (credentialResponse) => {
-    const success = await login(credentialResponse.credential);
-    if (success) {
-      navigate('/dashboard');
-    }
+    loginAttempted.current = true;
+    await login(credentialResponse.credential);
+    // Navigation will happen in useEffect when user state is updated
   };
 
   const handleGoogleError = () => {
     console.error('Google login failed');
+    loginAttempted.current = false;
   };
 
   return (
