@@ -117,6 +117,10 @@ npm run electron:start
 The Electron app provides a native desktop experience:
 - **Cross-platform**: Runs on Windows, macOS, and Linux
 - **Uses existing frontend**: Wraps the React web app
+- **API Mode Switching**: Toggle between local (localhost:8000) and cloud (litrev.haielab.org) at runtime
+  - Settings menu allows switching without rebuild
+  - Default: Local mode for development
+  - Cloud mode: No local backend required
 - **Connects to backend API**: Same API as web and CLI versions
 - **Build output**: Installers and portable apps in `electron/dist/`
 

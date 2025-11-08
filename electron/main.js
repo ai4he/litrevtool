@@ -1,6 +1,16 @@
-const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const Store = require('electron-store');
+
+// Initialize settings store
+const store = new Store({
+  defaults: {
+    apiMode: 'local', // 'local' or 'cloud'
+    localApiUrl: 'http://localhost:8000',
+    cloudApiUrl: 'https://litrev.haielab.org'
+  }
+});
 
 let mainWindow;
 
@@ -74,6 +84,33 @@ function getIconPath() {
   }
 }
 
+// Get current API URL based on mode
+function getCurrentApiUrl() {
+  const mode = store.get('apiMode');
+  if (mode === 'cloud') {
+    return store.get('cloudApiUrl');
+  }
+  return store.get('localApiUrl');
+}
+
+// Get current API mode
+function getApiMode() {
+  return store.get('apiMode');
+}
+
+// Set API mode
+function setApiMode(mode) {
+  if (mode !== 'local' && mode !== 'cloud') {
+    throw new Error('Invalid API mode. Must be "local" or "cloud"');
+  }
+  store.set('apiMode', mode);
+
+  // Reload the window to apply new API URL
+  if (mainWindow) {
+    mainWindow.reload();
+  }
+}
+
 function createMenu() {
   const template = [
     {
@@ -116,6 +153,39 @@ function createMenu() {
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'API Mode',
+          submenu: [
+            {
+              label: 'Local (localhost:8000)',
+              type: 'radio',
+              checked: getApiMode() === 'local',
+              click: () => {
+                setApiMode('local');
+                createMenu(); // Rebuild menu to update checkmarks
+              }
+            },
+            {
+              label: 'Cloud (litrev.haielab.org)',
+              type: 'radio',
+              checked: getApiMode() === 'cloud',
+              click: () => {
+                setApiMode('cloud');
+                createMenu(); // Rebuild menu to update checkmarks
+              }
+            }
+          ]
+        },
+        { type: 'separator' },
+        {
+          label: 'Current API: ' + getCurrentApiUrl(),
+          enabled: false
+        }
       ]
     },
     {
@@ -170,6 +240,20 @@ function createMenu() {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 }
+
+// IPC Handlers for settings
+ipcMain.handle('get-api-url', () => {
+  return getCurrentApiUrl();
+});
+
+ipcMain.handle('get-api-mode', () => {
+  return getApiMode();
+});
+
+ipcMain.handle('set-api-mode', (event, mode) => {
+  setApiMode(mode);
+  return getCurrentApiUrl();
+});
 
 // App lifecycle events
 app.whenReady().then(() => {

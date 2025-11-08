@@ -73,21 +73,42 @@ The Electron app consists of:
 
 ## Configuration
 
-### API URL
+### API Mode Switching
 
-By default, the app connects to `http://localhost:8000` for the backend API. To change this:
+The Electron app supports two API modes that can be switched at runtime via the **Settings** menu:
 
-1. Set the `REACT_APP_API_URL` environment variable before building the frontend
-2. Rebuild the frontend with the new API URL
-3. Rebuild the Electron app
+- **Local Mode** (default): Connects to `http://localhost:8000`
+- **Cloud Mode**: Connects to `https://litrev.haielab.org`
+
+#### Switching API Modes
+
+1. Open the app
+2. Go to **Settings > API Mode**
+3. Select either:
+   - **Local (localhost:8000)** - For local development
+   - **Cloud (litrev.haielab.org)** - For cloud-based service
+
+The app will automatically reload and connect to the selected API.
+
+#### How It Works
+
+- Settings are stored persistently using `electron-store`
+- The selected API URL is injected at runtime into the React app
+- No rebuild required when switching modes
+- The current API URL is displayed in the Settings menu
+
+#### Local Mode Requirements
+
+When using Local mode, ensure the backend server is running:
 
 ```bash
-cd frontend
-REACT_APP_API_URL=https://your-api-server.com npm run build
-
-cd ../electron
-npm run build
+cd backend-node
+npm run dev
 ```
+
+#### Cloud Mode
+
+Cloud mode connects to the production LitRevTool instance at `https://litrev.haielab.org`. No local backend required.
 
 ### Development vs Production
 

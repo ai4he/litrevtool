@@ -1,4 +1,4 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected methods that allow the renderer process to use
 // specific Electron functionality without exposing the entire API
@@ -9,7 +9,12 @@ contextBridge.exposeInMainWorld('electron', {
     chrome: process.versions.chrome,
     electron: process.versions.electron
   },
-  isElectron: true
+  isElectron: true,
+
+  // API Settings
+  getApiUrl: () => ipcRenderer.invoke('get-api-url'),
+  getApiMode: () => ipcRenderer.invoke('get-api-mode'),
+  setApiMode: (mode) => ipcRenderer.invoke('set-api-mode', mode)
 });
 
 // Log that preload script loaded successfully
