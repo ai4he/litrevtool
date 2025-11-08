@@ -115,13 +115,34 @@ export class PlaywrightScholarScraper {
   private async extractPapers(): Promise<Paper[]> {
     if (!this.page) throw new Error('Page not initialized');
 
-    const papers = await this.page.$$eval('.gs_r.gs_or.gs_scl', (elements) => {
-      return elements.map((el) => {
-        const titleEl = el.querySelector('.gs_rt a');
-        const title = titleEl?.textContent?.trim() || '';
-        const url = (titleEl as any)?.href || '';
+    // Try multiple selectors - Google Scholar structure has changed
+    let elements: any[] = [];
+    const selectors = [
+      '.gs_r.gs_or.gs_scl',  // Old structure (3 classes)
+      '.gs_r',                // Newer structure (single class)
+      '[data-cid]',          // Alternative data attribute
+    ];
 
-        const authorsEl = el.querySelector('.gs_a');
+    for (const selector of selectors) {
+      elements = await this.page.$$(selector);
+      if (elements.length > 0) {
+        logger.info(`Playwright: Found ${elements.length} results using selector: ${selector}`);
+        break;
+      }
+    }
+
+    if (elements.length === 0) {
+      logger.warn('Playwright: No elements found with any selector');
+      return [];
+    }
+
+    const papers = await Promise.all(elements.map(async (el) => {
+      return await el.evaluate((element: any) => {
+        const titleEl = element.querySelector('.gs_rt a, h3 a');
+        const title = titleEl?.textContent?.trim() || '';
+        const url = titleEl?.href || '';
+
+        const authorsEl = element.querySelector('.gs_a');
         const authorsText = authorsEl?.textContent?.trim() || '';
         const authorsParts = authorsText.split('-');
         const authors = authorsParts[0]?.trim() || '';
@@ -135,13 +156,13 @@ export class PlaywrightScholarScraper {
         const publisher = authorsParts[2]?.trim() || '';
 
         // Extract citations
-        const citedByEl = el.querySelector('.gs_fl a');
+        const citedByEl = element.querySelector('.gs_fl a');
         const citedByText = citedByEl?.textContent || '';
         const citationsMatch = citedByText.match(/Cited by (\d+)/);
         const citations = citationsMatch ? parseInt(citationsMatch[1], 10) : 0;
 
         // Extract abstract
-        const abstractEl = el.querySelector('.gs_rs');
+        const abstractEl = element.querySelector('.gs_rs');
         const abstract = abstractEl?.textContent?.trim() || '';
 
         return {
@@ -155,7 +176,7 @@ export class PlaywrightScholarScraper {
           url,
         };
       });
-    });
+    }));
 
     return papers.filter((p) => p.title);
   }
@@ -255,8 +276,8 @@ export class PlaywrightScholarScraper {
             throw new Error('CAPTCHA detected');
           }
 
-          // Wait for results
-          await this.page!.waitForSelector('.gs_r', { timeout: 10000 });
+          // Wait for results (don't require visibility - some results may be lazily loaded)
+          await this.page!.waitForSelector('.gs_r', { timeout: 10000, state: 'attached' });
 
           // Extract papers
           const papers = await this.extractPapers();
