@@ -21,6 +21,7 @@ eggs/
 lib/
 lib64/
 !cli/lib/
+!frontend-nextjs/lib/
 parts/
 sdist/
 var/
