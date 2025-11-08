@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LitRevTool is a literature review tool that overcomes Google Scholar's 1000-paper limit by automatically splitting searches by year and running them in parallel. It consists of a React frontend, FastAPI backend, and Celery task queue for background scraping.
+LitRevTool is a literature review tool that overcomes Google Scholar's 1000-paper limit by automatically splitting searches by year and running them in parallel. It consists of:
+- **Web App**: React frontend with Node.js backend
+- **Desktop App**: Electron-based native application (Windows, macOS, Linux)
+- **CLI Tool**: Command-line interface for automation and scripting
+- **Backend**: Node.js Express server with BullMQ task queue for background scraping
 
 **Key Differentiator**: Can extract 1000 papers per year (e.g., 4000 papers for 2020-2023 vs. Publish or Perish's 1000 paper limit) by splitting searches by year and using intelligent pagination.
 
@@ -12,17 +16,18 @@ LitRevTool is a literature review tool that overcomes Google Scholar's 1000-pape
 
 ### Stack
 - **Frontend**: React + Material-UI (port 3001)
-- **Backend**: FastAPI + SQLAlchemy (port 8000)
+- **Backend**: Node.js + Express + TypeScript (port 8000)
 - **CLI**: Node.js command-line interface (uses API endpoints)
-- **Database**: SQLite (backend/litrevtool.db)
-- **Task Queue**: Celery + Redis
+- **Desktop App**: Electron-based desktop application (wraps React frontend)
+- **Database**: SQLite (backend-node/litrevtool.db)
+- **Task Queue**: BullMQ + Redis
 - **Process Manager**: PM2 manages all services
-- **Scraper**: Playwright-based Google Scholar scraper with Tor support
+- **Scraper**: Multi-strategy scraper (scholarly library, HTTP, Playwright)
 
 ### Service Layout
 Three PM2-managed services defined in `ecosystem.config.js`:
-1. `litrev-backend` - Uvicorn running FastAPI app
-2. `litrev-celery` - Celery worker processing scraping tasks
+1. `litrev-backend` - Node.js Express server with TypeScript
+2. `litrev-worker` - BullMQ worker processing scraping tasks
 3. `litrev-frontend` - React dev server
 
 ## Critical Commands
@@ -90,6 +95,32 @@ npm run cli:uninstall       # Remove global 'litrev' command
 ```
 
 See [cli/README.md](cli/README.md) for complete CLI documentation.
+
+### Electron Desktop App
+```bash
+# Install Electron dependencies
+npm run electron:install
+
+# Run in development mode (requires backend + frontend dev server)
+npm run electron:dev
+
+# Build for production
+npm run electron:build        # Build for current platform
+npm run electron:build:mac    # Build for macOS
+npm run electron:build:win    # Build for Windows
+npm run electron:build:linux  # Build for Linux
+
+# Run production build (requires backend + frontend build)
+npm run electron:start
+```
+
+The Electron app provides a native desktop experience:
+- **Cross-platform**: Runs on Windows, macOS, and Linux
+- **Uses existing frontend**: Wraps the React web app
+- **Connects to backend API**: Same API as web and CLI versions
+- **Build output**: Installers and portable apps in `electron/dist/`
+
+See [electron/README.md](electron/README.md) for complete Electron app documentation.
 
 ## Key Application Components
 

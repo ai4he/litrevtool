@@ -34,7 +34,14 @@
     "cli": "bash -c 'cd backend && source venv/bin/activate && python3 cli_search.py \"$@\"' --",
     "cli:help": "bash -c 'cd backend && source venv/bin/activate && python3 cli_search.py --help'",
     "cli:install": "cd cli && npm install && npm link && echo '✅ CLI installed! Use \"litrev\" command'",
-    "cli:uninstall": "cd cli && npm unlink -g @litrevtool/cli && echo '✅ CLI uninstalled'"
+    "cli:uninstall": "cd cli && npm unlink -g @litrevtool/cli && echo '✅ CLI uninstalled'",
+    "electron:install": "cd electron && npm install && echo '✅ Electron dependencies installed'",
+    "electron:dev": "echo '🚀 Starting Electron in development mode...' && echo '⚠️  Make sure backend and frontend dev servers are running!' && cd electron && npm run dev",
+    "electron:start": "echo '🚀 Starting Electron app...' && echo '⚠️  Make sure backend is running and frontend is built!' && cd electron && npm start",
+    "electron:build": "echo '📦 Building Electron app...' && cd frontend && npm run build && cd ../electron && npm run build && echo '✅ Electron app built successfully! Check electron/dist/'",
+    "electron:build:mac": "cd frontend && npm run build && cd ../electron && npm run build:mac",
+    "electron:build:win": "cd frontend && npm run build && cd ../electron && npm run build:win",
+    "electron:build:linux": "cd frontend && npm run build && cd ../electron && npm run build:linux"
   },
   "keywords": [
     "literature-review",
