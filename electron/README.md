@@ -75,18 +75,20 @@ The Electron app consists of:
 
 ### API Mode Switching
 
-The Electron app supports two API modes that can be switched at runtime via the **Settings** menu:
+The Electron app supports **three API modes** that can be switched at runtime via the **Settings** menu:
 
 - **Local Mode** (default): Connects to `http://localhost:8000`
 - **Cloud Mode**: Connects to `https://litrev.haielab.org`
+- **Hybrid Mode**: Runs locally + syncs to cloud
 
 #### Switching API Modes
 
 1. Open the app
 2. Go to **Settings > API Mode**
-3. Select either:
-   - **Local (localhost:8000)** - For local development
+3. Select one of:
+   - **Local (localhost:8000)** - For local development only
    - **Cloud (litrev.haielab.org)** - For cloud-based service
+   - **Hybrid (local + cloud sync)** - Run locally, sync results to cloud
 
 The app will automatically reload and connect to the selected API.
 
@@ -95,11 +97,14 @@ The app will automatically reload and connect to the selected API.
 - Settings are stored persistently using `electron-store`
 - The selected API URL is injected at runtime into the React app
 - No rebuild required when switching modes
-- The current API URL is displayed in the Settings menu
+- The current API URL(s) are displayed in the Settings menu
 
-#### Local Mode Requirements
+#### Local Mode
 
-When using Local mode, ensure the backend server is running:
+Pure local development mode:
+- All operations use local backend
+- No cloud connectivity required
+- Requires local backend running:
 
 ```bash
 cd backend-node
@@ -108,7 +113,35 @@ npm run dev
 
 #### Cloud Mode
 
-Cloud mode connects to the production LitRevTool instance at `https://litrev.haielab.org`. No local backend required.
+Pure cloud mode:
+- All operations use cloud backend at `https://litrev.haielab.org`
+- No local backend required
+- Ideal for users without local setup
+
+#### Hybrid Mode
+
+**Best of both worlds** - combines local processing with cloud backup:
+
+- **Primary**: Local backend (`http://localhost:8000`)
+  - All scraping and processing runs locally
+  - Faster performance using local resources
+  - Full control over the process
+
+- **Secondary**: Cloud backend (`https://litrev.haielab.org`)
+  - Results are automatically synced to cloud
+  - Provides cloud backup of your work
+  - Enables access from other devices
+
+**Requirements**:
+- Local backend must be running
+- Internet connection for cloud sync
+- Valid cloud account
+
+**How Sync Works**:
+- Jobs run on local backend
+- When jobs complete, results sync to cloud
+- Sync happens automatically in the background
+- Sync failures don't affect local operations
 
 ### Development vs Production
 

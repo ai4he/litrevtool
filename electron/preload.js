@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // API Settings
   getApiUrl: () => ipcRenderer.invoke('get-api-url'),
+  getApiUrls: () => ipcRenderer.invoke('get-api-urls'),
   getApiMode: () => ipcRenderer.invoke('get-api-mode'),
   setApiMode: (mode) => ipcRenderer.invoke('set-api-mode', mode)
 });

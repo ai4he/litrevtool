@@ -6,7 +6,7 @@ const Store = require('electron-store');
 // Initialize settings store
 const store = new Store({
   defaults: {
-    apiMode: 'local', // 'local' or 'cloud'
+    apiMode: 'local', // 'local', 'cloud', or 'hybrid'
     localApiUrl: 'http://localhost:8000',
     cloudApiUrl: 'https://litrev.haielab.org'
   }
@@ -84,13 +84,29 @@ function getIconPath() {
   }
 }
 
-// Get current API URL based on mode
+// Get current API URL based on mode (primary API)
 function getCurrentApiUrl() {
   const mode = store.get('apiMode');
   if (mode === 'cloud') {
     return store.get('cloudApiUrl');
   }
+  // For local and hybrid modes, use local API as primary
   return store.get('localApiUrl');
+}
+
+// Get cloud API URL for syncing (used in hybrid mode)
+function getCloudApiUrl() {
+  return store.get('cloudApiUrl');
+}
+
+// Get both API URLs (for hybrid mode)
+function getApiUrls() {
+  const mode = store.get('apiMode');
+  return {
+    mode: mode,
+    primary: getCurrentApiUrl(),
+    secondary: mode === 'hybrid' ? getCloudApiUrl() : null
+  };
 }
 
 // Get current API mode
@@ -100,8 +116,8 @@ function getApiMode() {
 
 // Set API mode
 function setApiMode(mode) {
-  if (mode !== 'local' && mode !== 'cloud') {
-    throw new Error('Invalid API mode. Must be "local" or "cloud"');
+  if (mode !== 'local' && mode !== 'cloud' && mode !== 'hybrid') {
+    throw new Error('Invalid API mode. Must be "local", "cloud", or "hybrid"');
   }
   store.set('apiMode', mode);
 
@@ -178,12 +194,23 @@ function createMenu() {
                 setApiMode('cloud');
                 createMenu(); // Rebuild menu to update checkmarks
               }
+            },
+            {
+              label: 'Hybrid (local + cloud sync)',
+              type: 'radio',
+              checked: getApiMode() === 'hybrid',
+              click: () => {
+                setApiMode('hybrid');
+                createMenu(); // Rebuild menu to update checkmarks
+              }
             }
           ]
         },
         { type: 'separator' },
         {
-          label: 'Current API: ' + getCurrentApiUrl(),
+          label: getApiMode() === 'hybrid'
+            ? 'Primary: ' + getCurrentApiUrl() + ' | Sync: ' + getCloudApiUrl()
+            : 'Current API: ' + getCurrentApiUrl(),
           enabled: false
         }
       ]
@@ -246,13 +273,17 @@ ipcMain.handle('get-api-url', () => {
   return getCurrentApiUrl();
 });
 
+ipcMain.handle('get-api-urls', () => {
+  return getApiUrls();
+});
+
 ipcMain.handle('get-api-mode', () => {
   return getApiMode();
 });
 
 ipcMain.handle('set-api-mode', (event, mode) => {
   setApiMode(mode);
-  return getCurrentApiUrl();
+  return getApiUrls();
 });
 
 // App lifecycle events

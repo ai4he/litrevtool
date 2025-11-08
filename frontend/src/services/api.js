@@ -2,6 +2,7 @@ import axios from 'axios';
 
 // Get API URL - supports both web and Electron modes
 let cachedApiUrl = null;
+let cachedApiConfig = null;
 
 async function getApiUrl() {
   // If already cached, return it
@@ -23,6 +24,66 @@ async function getApiUrl() {
   // Fallback to environment variable or default
   cachedApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
   return cachedApiUrl;
+}
+
+// Get API configuration including mode and sync URL (for hybrid mode)
+async function getApiConfig() {
+  // If already cached, return it
+  if (cachedApiConfig) {
+    return cachedApiConfig;
+  }
+
+  // Check if running in Electron
+  if (window.electron && window.electron.getApiUrls) {
+    try {
+      cachedApiConfig = await window.electron.getApiUrls();
+      console.log('Electron API Config:', cachedApiConfig);
+      return cachedApiConfig;
+    } catch (error) {
+      console.error('Failed to get Electron API config:', error);
+    }
+  }
+
+  // Fallback to simple config
+  const apiUrl = await getApiUrl();
+  cachedApiConfig = {
+    mode: 'local',
+    primary: apiUrl,
+    secondary: null
+  };
+  return cachedApiConfig;
+}
+
+// Sync job to cloud (for hybrid mode)
+async function syncJobToCloud(jobId) {
+  const config = await getApiConfig();
+
+  // Only sync if in hybrid mode and secondary URL is available
+  if (config.mode !== 'hybrid' || !config.secondary) {
+    console.log('Skipping cloud sync - not in hybrid mode');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const job = await api.get(`/jobs/${jobId}`);
+
+    // Sync job to cloud API
+    await axios({
+      url: `${config.secondary}/api/v1/jobs/${jobId}/sync`,
+      method: 'POST',
+      data: job.data,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: token ? `Bearer ${token}` : undefined
+      }
+    });
+
+    console.log(`Job ${jobId} synced to cloud`);
+  } catch (error) {
+    console.error('Failed to sync job to cloud:', error);
+    // Don't throw - sync is optional
+  }
 }
 
 // Initialize with default, will be updated by interceptor
@@ -116,9 +177,11 @@ export const jobsAPI = {
     const apiUrl = await getApiUrl();
     return `${apiUrl}/api/v1/jobs/${jobId}/screenshot?t=${Date.now()}`;
   },
+  // Sync job to cloud (hybrid mode)
+  syncToCloud: syncJobToCloud,
 };
 
-// Export getApiUrl for components that need it
-export { getApiUrl };
+// Export utility functions for components that need them
+export { getApiUrl, getApiConfig, syncJobToCloud };
 
 export default api;
