@@ -64,5 +64,10 @@ backend/uploads/
 /build
 /frontend/build
 
+# Electron
+/electron/dist
+/electron/out
+/electron/node_modules
+
 # Misc
 .cache/

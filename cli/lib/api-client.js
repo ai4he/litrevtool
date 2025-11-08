@@ -62,28 +62,30 @@ class ApiClient {
 
   // Search job endpoints
   async createSearchJob(jobData) {
-    return this.request('POST', '/api/v1/search-jobs/', jobData);
+    return this.request('POST', '/api/v1/jobs/', jobData);
   }
 
   async getSearchJobs(skip = 0, limit = 100) {
-    return this.request('GET', `/api/v1/search-jobs/?skip=${skip}&limit=${limit}`);
+    const response = await this.request('GET', `/api/v1/jobs/?skip=${skip}&limit=${limit}`);
+    // Backend returns { jobs: [], total: number }, normalize to array
+    return response.jobs || response;
   }
 
   async getSearchJob(jobId) {
-    return this.request('GET', `/api/v1/search-jobs/${jobId}`);
+    return this.request('GET', `/api/v1/jobs/${jobId}`);
   }
 
   async deleteSearchJob(jobId) {
-    return this.request('DELETE', `/api/v1/search-jobs/${jobId}`);
+    return this.request('DELETE', `/api/v1/jobs/${jobId}`);
   }
 
   async resumeSearchJob(jobId) {
-    return this.request('POST', `/api/v1/search-jobs/${jobId}/resume`);
+    return this.request('POST', `/api/v1/jobs/${jobId}/resume`);
   }
 
   async downloadCsv(jobId) {
     const client = this._getClient();
-    const response = await client.get(`/api/v1/search-jobs/${jobId}/download`, {
+    const response = await client.get(`/api/v1/jobs/${jobId}/download`, {
       responseType: 'arraybuffer'
     });
     return response.data;
@@ -91,7 +93,7 @@ class ApiClient {
 
   async downloadPrismaDiagram(jobId) {
     const client = this._getClient();
-    const response = await client.get(`/api/v1/search-jobs/${jobId}/download-prisma`, {
+    const response = await client.get(`/api/v1/jobs/${jobId}/prisma-diagram`, {
       responseType: 'arraybuffer'
     });
     return response.data;
@@ -99,7 +101,7 @@ class ApiClient {
 
   async downloadLatex(jobId) {
     const client = this._getClient();
-    const response = await client.get(`/api/v1/search-jobs/${jobId}/download-latex`, {
+    const response = await client.get(`/api/v1/jobs/${jobId}/latex`, {
       responseType: 'arraybuffer'
     });
     return response.data;
@@ -107,7 +109,7 @@ class ApiClient {
 
   async downloadBibtex(jobId) {
     const client = this._getClient();
-    const response = await client.get(`/api/v1/search-jobs/${jobId}/download-bibtex`, {
+    const response = await client.get(`/api/v1/jobs/${jobId}/bibtex`, {
       responseType: 'arraybuffer'
     });
     return response.data;
