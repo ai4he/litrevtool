@@ -29,10 +29,20 @@ interface SearchCriteria {
 }
 
 interface PrismaMetrics {
-  identification?: number;
-  screening?: number;
-  eligibility?: number;
-  included?: number;
+  identification?: {
+    records_identified: number;
+  };
+  screening?: {
+    records_excluded_duplicates: number;
+    records_after_duplicates_removed: number;
+  };
+  eligibility?: {
+    full_text_assessed: number;
+    full_text_excluded_semantic: number;
+  };
+  included?: {
+    studies_included: number;
+  };
 }
 
 export class LaTeXReviewGenerator {
@@ -139,14 +149,16 @@ The search was conducted using LitRevTool, which overcomes Google Scholar's limi
   private generatePrismaSection(prismaMetrics?: PrismaMetrics): string {
     if (!prismaMetrics) return '';
 
-    const identification = prismaMetrics.identification || 0;
-    const screening = prismaMetrics.screening || 0;
-    const eligibility = prismaMetrics.eligibility || 0;
-    const included = prismaMetrics.included || 0;
+    const identification = prismaMetrics.identification?.records_identified || 0;
+    const duplicatesRemoved = prismaMetrics.screening?.records_excluded_duplicates || 0;
+    const afterDedup = prismaMetrics.screening?.records_after_duplicates_removed || 0;
+    const assessed = prismaMetrics.eligibility?.full_text_assessed || 0;
+    const excluded = prismaMetrics.eligibility?.full_text_excluded_semantic || 0;
+    const included = prismaMetrics.included?.studies_included || 0;
 
     return `\\section{PRISMA Flow}
 
-The following table summarizes the systematic review process according to PRISMA guidelines:
+The following table summarizes the systematic review process according to PRISMA 2020 guidelines:
 
 \\begin{table}[h]
 \\centering
@@ -154,14 +166,22 @@ The following table summarizes the systematic review process according to PRISMA
 \\toprule
 \\textbf{Stage} & \\textbf{Count} \\\\
 \\midrule
-Records identified & ${identification} \\\\
-Records screened & ${screening} \\\\
-Papers assessed for eligibility & ${eligibility} \\\\
+\\textbf{Identification} & \\\\
+Records identified from database searching & ${identification} \\\\
 \\midrule
-\\textbf{Studies included} & \\textbf{${included}} \\\\
+\\textbf{Screening} & \\\\
+Duplicate records removed & ${duplicatesRemoved} \\\\
+Records after duplicates removed & ${afterDedup} \\\\
+\\midrule
+\\textbf{Eligibility} & \\\\
+Full-text articles assessed & ${assessed} \\\\
+Full-text articles excluded & ${excluded} \\\\
+\\midrule
+\\textbf{Included} & \\\\
+\\textbf{Studies included in review} & \\textbf{${included}} \\\\
 \\bottomrule
 \\end{tabular}
-\\caption{PRISMA flow summary}
+\\caption{PRISMA 2020 flow summary}
 \\label{tab:prisma}
 \\end{table}
 

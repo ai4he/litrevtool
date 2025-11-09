@@ -8,11 +8,20 @@ import { config } from '../core/config';
 import logger from '../core/logger';
 
 interface PrismaMetrics {
-  identification: number;
-  screening: number;
-  eligibility: number;
-  included: number;
-  [key: string]: any;
+  identification: {
+    records_identified: number;
+  };
+  screening: {
+    records_excluded_duplicates: number;
+    records_after_duplicates_removed: number;
+  };
+  eligibility: {
+    full_text_assessed: number;
+    full_text_excluded_semantic: number;
+  };
+  included: {
+    studies_included: number;
+  };
 }
 
 export function generatePrismaDiagram(
@@ -68,7 +77,7 @@ export function generatePrismaDiagram(
       Records identified from database searching
     </text>
     <text x="450" y="140" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
-      n = ${metrics.identification}
+      n = ${metrics.identification.records_identified}
     </text>
   </g>
 
@@ -86,7 +95,7 @@ export function generatePrismaDiagram(
       Records after duplicates removed
     </text>
     <text x="450" y="260" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
-      n = ${metrics.screening}
+      n = ${metrics.screening.records_after_duplicates_removed}
     </text>
   </g>
 
@@ -107,7 +116,7 @@ export function generatePrismaDiagram(
       (including semantic filtering if applied)
     </text>
     <text x="450" y="400" text-anchor="middle" style="font-family: Arial; font-size: 18px; font-weight: bold; fill: #1976d2;">
-      n = ${metrics.eligibility}
+      n = ${metrics.eligibility.full_text_assessed}
     </text>
   </g>
 
@@ -125,9 +134,24 @@ export function generatePrismaDiagram(
       Studies included in review
     </text>
     <text x="450" y="540" text-anchor="middle" style="font-family: Arial; font-size: 22px; font-weight: bold; fill: white;">
-      n = ${metrics.included}
+      n = ${metrics.included.studies_included}
     </text>
   </g>
+
+  <!-- Duplicates removed box (left side) -->
+  <g>
+    <rect x="20" y="190" width="200" height="80" fill="#fff3e0"
+          stroke="#f57c00" stroke-width="2" rx="5" filter="url(#shadow)"/>
+    <text x="120" y="215" text-anchor="middle" style="font-family: Arial; font-size: 14px; font-weight: bold; fill: #f57c00;">
+      Duplicates Removed
+    </text>
+    <text x="120" y="240" text-anchor="middle" style="font-family: Arial; font-size: 12px;">
+      ${metrics.screening.records_excluded_duplicates} duplicates
+    </text>
+  </g>
+
+  <!-- Connection line to duplicates -->
+  <line x1="250" y1="230" x2="220" y2="230" stroke="#f57c00" stroke-width="2" stroke-dasharray="5,5"/>
 
   <!-- Exclusions box (right side) -->
   <g>
@@ -137,7 +161,7 @@ export function generatePrismaDiagram(
       Excluded
     </text>
     <text x="780" y="360" text-anchor="middle" style="font-family: Arial; font-size: 12px;">
-      ${metrics.eligibility - metrics.included} articles excluded
+      ${metrics.eligibility.full_text_excluded_semantic} articles excluded
     </text>
     <text x="780" y="380" text-anchor="middle" style="font-family: Arial; font-size: 11px;">
       (semantic criteria or
