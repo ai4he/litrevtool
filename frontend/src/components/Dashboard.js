@@ -543,12 +543,26 @@ function Dashboard() {
                             {jobPapers[job.id].slice(0, 10).map((paper, index) => (
                               <React.Fragment key={paper.id}>
                                 {index > 0 && <Divider />}
-                                <ListItem alignItems="flex-start" sx={{ py: { xs: 0.25, sm: 0.5 }, px: { xs: 1, sm: 2 } }}>
+                                <ListItem alignItems="flex-start" sx={{
+                                  py: { xs: 0.25, sm: 0.5 },
+                                  px: { xs: 1, sm: 2 },
+                                  bgcolor: paper.is_excluded ? 'rgba(211, 47, 47, 0.05)' : 'inherit'
+                                }}>
                                   <ListItemText
                                     primary={
-                                      <Typography variant="caption" fontWeight="bold" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                        {index + 1}. {paper.title}
-                                      </Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                        <Typography variant="caption" fontWeight="bold" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                          {index + 1}. {paper.title}
+                                        </Typography>
+                                        {paper.is_excluded && (
+                                          <Chip
+                                            label="Excluded"
+                                            size="small"
+                                            color="error"
+                                            sx={{ height: 16, fontSize: '0.65rem' }}
+                                          />
+                                        )}
+                                      </Box>
                                     }
                                     secondary={
                                       <Box component="span">
@@ -557,6 +571,11 @@ function Dashboard() {
                                           {paper.year && ` • ${paper.year}`}
                                           {paper.citations !== null && paper.citations !== undefined && ` • Cited: ${paper.citations}`}
                                         </Typography>
+                                        {paper.semantic_rationale && (
+                                          <Typography variant="caption" display="block" color={paper.is_excluded ? 'error' : 'success.main'} sx={{ fontSize: { xs: '0.6rem', sm: '0.65rem' }, mt: 0.5, fontStyle: 'italic' }}>
+                                            💡 {paper.semantic_rationale}
+                                          </Typography>
+                                        )}
                                       </Box>
                                     }
                                   />
@@ -615,26 +634,18 @@ function Dashboard() {
                           </Typography>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                             <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                              <strong>Identified:</strong> {job.prisma_metrics.identification.records_identified} records
+                              <strong>Identified:</strong> {job.prisma_metrics.identification} records
                             </Typography>
                             <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                              <strong>Duplicates Removed:</strong> {job.prisma_metrics.screening.records_excluded_duplicates}
+                              <strong>After Screening:</strong> {job.prisma_metrics.screening} records
                             </Typography>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                              <strong>After Deduplication:</strong> {job.prisma_metrics.screening.records_after_duplicates_removed}
-                            </Typography>
-                            {job.prisma_metrics.eligibility.full_text_assessed > 0 && (
-                              <>
-                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                  <strong>Semantic Assessed:</strong> {job.prisma_metrics.eligibility.full_text_assessed}
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                                  <strong>Semantic Excluded:</strong> {job.prisma_metrics.eligibility.full_text_excluded_semantic}
-                                </Typography>
-                              </>
+                            {job.prisma_metrics.eligibility > 0 && (
+                              <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                <strong>Eligibility Assessed:</strong> {job.prisma_metrics.eligibility} papers
+                              </Typography>
                             )}
                             <Typography variant="caption" color="success.main" fontWeight="bold" sx={{ mt: 0.5, fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
-                              <strong>Final Included:</strong> {job.prisma_metrics.included.studies_included} papers
+                              <strong>Final Included:</strong> {job.prisma_metrics.included} papers
                             </Typography>
                           </Box>
                         </Box>
@@ -796,12 +807,26 @@ function Dashboard() {
                           {jobPapers[job.id].map((paper, index) => (
                             <React.Fragment key={paper.id}>
                               {index > 0 && <Divider />}
-                              <ListItem alignItems="flex-start" sx={{ px: { xs: 1, sm: 2 }, py: { xs: 0.5, sm: 1 } }}>
+                              <ListItem alignItems="flex-start" sx={{
+                                px: { xs: 1, sm: 2 },
+                                py: { xs: 0.5, sm: 1 },
+                                bgcolor: paper.is_excluded ? 'rgba(211, 47, 47, 0.05)' : 'inherit'
+                              }}>
                                 <ListItemText
                                   primary={
-                                    <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-                                      {index + 1}. {paper.title}
-                                    </Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
+                                        {index + 1}. {paper.title}
+                                      </Typography>
+                                      {paper.is_excluded && (
+                                        <Chip
+                                          label="Excluded"
+                                          size="small"
+                                          color="error"
+                                          sx={{ height: 18, fontSize: '0.7rem' }}
+                                        />
+                                      )}
+                                    </Box>
                                   }
                                   secondary={
                                     <Box component="span">
@@ -822,8 +847,13 @@ function Dashboard() {
                                           Cited by: {paper.citations}
                                         </Typography>
                                       )}
+                                      {paper.semantic_rationale && (
+                                        <Typography variant="caption" display="block" color={paper.is_excluded ? 'error' : 'success.main'} sx={{ fontSize: { xs: '0.65rem', sm: '0.7rem' }, mt: 0.5, fontStyle: 'italic' }}>
+                                          💡 {paper.semantic_rationale}
+                                        </Typography>
+                                      )}
                                       {paper.url && (
-                                        <Typography variant="caption" display="block" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' } }}>
+                                        <Typography variant="caption" display="block" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, mt: 0.5 }}>
                                           <a href={paper.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>
                                             🔗 Link
                                           </a>

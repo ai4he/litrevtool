@@ -22,8 +22,8 @@ interface SearchOptions {
   startYear?: number;
   endYear?: number;
   maxResults?: number;
-  progressCallback?: (current: number, total: number) => void;
-  papersCallback?: (papers: Paper[]) => void;
+  progressCallback?: (current: number, total: number) => void | Promise<void>;
+  papersCallback?: (papers: Paper[]) => void | Promise<void>;
 }
 
 interface StrategyStats {
@@ -78,15 +78,14 @@ class HttpStrategy extends ScraperStrategy {
         startYear: options.startYear,
         endYear: options.endYear,
         maxResults: options.maxResults,
+        progressCallback: options.progressCallback,
+        papersCallback: options.papersCallback,
       });
 
-      // Call callbacks incrementally
-      if (options.papersCallback && results.length > 0) {
-        options.papersCallback(results);
-      }
-
+      // Callbacks are now called incrementally by the scraper
+      // Final callback for any remaining progress
       if (options.progressCallback) {
-        options.progressCallback(results.length, options.maxResults || results.length);
+        await options.progressCallback(results.length, options.maxResults || results.length);
       }
 
       this.successCount++;
@@ -139,12 +138,11 @@ class PlaywrightStrategy extends ScraperStrategy {
         endYear: options.endYear,
         maxResults: options.maxResults,
         progressCallback: options.progressCallback,
+        papersCallback: options.papersCallback,
       });
 
-      // Call papers callback
-      if (options.papersCallback && results.length > 0) {
-        options.papersCallback(results);
-      }
+      // Callbacks are now called incrementally by the scraper
+      // No need to call again here
 
       this.successCount++;
       return results;

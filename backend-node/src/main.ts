@@ -13,8 +13,19 @@ const app = express();
 
 // Middleware
 app.use(cors({ origin: config.BACKEND_CORS_ORIGINS, credentials: true }));
+
+// JSON parsing with error handling
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// JSON parsing error handler
+app.use((err: any, req: Request, res: Response, next: any) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    logger.error('JSON parsing error:', err.message);
+    return res.status(400).json({ detail: 'Invalid JSON in request body' });
+  }
+  next(err);
+});
 
 // Request logging
 app.use((req, res, next) => {

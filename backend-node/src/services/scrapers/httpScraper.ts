@@ -226,6 +226,8 @@ export class HttpScholarScraper {
     startYear?: number;
     endYear?: number;
     maxResults?: number;
+    progressCallback?: (current: number, total: number) => void | Promise<void>;
+    papersCallback?: (papers: Paper[]) => void | Promise<void>;
   }): Promise<Paper[]> {
     const allPapers: Paper[] = [];
     const seenTitles = new Set<string>();
@@ -274,23 +276,38 @@ export class HttpScholarScraper {
 
           if (!papers.length) {
             consecutiveEmpty++;
-            if (consecutiveEmpty >= 2) break;
+            if (consecutiveEmpty >= 5) {
+              logger.info('HTTP Scraper: 5 consecutive empty pages - end of results');
+              break;
+            }
           } else {
             consecutiveEmpty = 0;
           }
 
-          // Deduplicate
+          // Deduplicate and collect new papers from this page
+          const newPapers: Paper[] = [];
           for (const paper of papers) {
             const titleKey = paper.title.trim().toLowerCase();
             if (titleKey && !seenTitles.has(titleKey)) {
               seenTitles.add(titleKey);
               allPapers.push(paper);
+              newPapers.push(paper);
 
               if (options.maxResults && allPapers.length >= options.maxResults) break;
             }
           }
 
           logger.info(`HTTP Scraper: Collected ${allPapers.length} papers`);
+
+          // Report incremental progress
+          if (newPapers.length > 0) {
+            if (options.papersCallback) {
+              await options.papersCallback(newPapers);
+            }
+            if (options.progressCallback) {
+              await options.progressCallback(allPapers.length, options.maxResults || allPapers.length * 2);
+            }
+          }
 
           // Pagination limit
           if (start >= 990) {

@@ -29,10 +29,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Validate parameters
     if (start_year && end_year && start_year > end_year) {
+      logger.warn(`Job creation validation failed: start_year (${start_year}) > end_year (${end_year})`);
       return res.status(400).json({ detail: 'start_year must be less than or equal to end_year' });
     }
 
     if (!keywords_include || keywords_include.length === 0) {
+      logger.warn(`Job creation validation failed: No keywords_include provided. Body: ${JSON.stringify(req.body)}`);
       return res.status(400).json({ detail: 'At least one inclusion keyword is required' });
     }
 
@@ -59,9 +61,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     logger.info(`Search job created: ${job.id}`);
 
     return res.status(201).json(job);
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error creating search job:', error);
-    return res.status(500).json({ detail: 'Failed to create search job' });
+    logger.error('Request body:', req.body);
+    return res.status(500).json({ detail: error.message || 'Failed to create search job' });
   }
 });
 

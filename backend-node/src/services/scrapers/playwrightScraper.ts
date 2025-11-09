@@ -186,7 +186,8 @@ export class PlaywrightScholarScraper {
     startYear?: number;
     endYear?: number;
     maxResults?: number;
-    progressCallback?: (current: number, total: number) => void;
+    progressCallback?: (current: number, total: number) => void | Promise<void>;
+    papersCallback?: (papers: Paper[]) => void | Promise<void>;
   }): Promise<Paper[]> {
     if (!this.page) {
       await this.initialize();
@@ -284,17 +285,22 @@ export class PlaywrightScholarScraper {
 
           if (!papers.length) {
             consecutiveEmpty++;
-            if (consecutiveEmpty >= 2) break;
+            if (consecutiveEmpty >= 5) {
+              logger.info('Playwright: 5 consecutive empty pages - end of results');
+              break;
+            }
           } else {
             consecutiveEmpty = 0;
           }
 
-          // Deduplicate
+          // Deduplicate and collect new papers from this page
+          const newPapers: Paper[] = [];
           for (const paper of papers) {
             const titleKey = paper.title.trim().toLowerCase();
             if (titleKey && !seenTitles.has(titleKey)) {
               seenTitles.add(titleKey);
               allPapers.push(paper);
+              newPapers.push(paper);
 
               if (options.maxResults && allPapers.length >= options.maxResults) break;
             }
@@ -302,9 +308,15 @@ export class PlaywrightScholarScraper {
 
           logger.info(`Playwright: Collected ${allPapers.length} papers`);
 
-          if (options.progressCallback) {
-            const estimated = options.maxResults || allPapers.length * 2;
-            options.progressCallback(allPapers.length, estimated);
+          // Report incremental progress
+          if (newPapers.length > 0) {
+            if (options.papersCallback) {
+              await options.papersCallback(newPapers);
+            }
+            if (options.progressCallback) {
+              const estimated = options.maxResults || allPapers.length * 2;
+              await options.progressCallback(allPapers.length, estimated);
+            }
           }
 
           // Pagination limit
