@@ -3,10 +3,20 @@ import { sequelize } from '../db';
 import { v4 as uuidv4 } from 'uuid';
 
 interface PrismaMetrics {
-  identification: number;
-  screening: number;
-  eligibility: number;
-  included: number;
+  identification: {
+    records_identified: number;
+  };
+  screening: {
+    records_excluded_duplicates: number;
+    records_after_duplicates_removed: number;
+  };
+  eligibility: {
+    full_text_assessed: number;
+    full_text_excluded_semantic: number;
+  };
+  included: {
+    studies_included: number;
+  };
 }
 
 interface SearchJobAttributes {

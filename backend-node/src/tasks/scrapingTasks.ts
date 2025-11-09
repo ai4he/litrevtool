@@ -158,12 +158,25 @@ export async function runSearchJob(jobId: string): Promise<void> {
     job.progress = 75;
     await job.save();
 
-    // Generate PRISMA metrics
+    // Generate PRISMA metrics (following PRISMA 2020 standards)
+    const duplicatesRemoved = papers.length - savedPapers.length; // Papers found - papers saved (duplicates)
+    const semanticExcluded = savedPapers.length - includedPapers.length;
+
     const prismaMetrics = {
-      identification: papers.length,
-      screening: papers.length,
-      eligibility: savedPapers.length,
-      included: includedPapers.length,
+      identification: {
+        records_identified: papers.length,
+      },
+      screening: {
+        records_excluded_duplicates: duplicatesRemoved,
+        records_after_duplicates_removed: savedPapers.length,
+      },
+      eligibility: {
+        full_text_assessed: savedPapers.length,
+        full_text_excluded_semantic: semanticExcluded,
+      },
+      included: {
+        studies_included: includedPapers.length,
+      },
     };
     job.prismaMetrics = prismaMetrics;
 
