@@ -66,7 +66,7 @@ export const getAPIClient = async (): Promise<AxiosInstance> => {
 export const authAPI = {
   googleLogin: async (credential: string) => {
     const api = await getAPIClient();
-    return api.post('/auth/google', { credential });
+    return api.post('/auth/google', { token: credential });
   },
 };
 
