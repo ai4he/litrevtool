@@ -117,12 +117,21 @@ export default function Dashboard() {
   const [expandedJobs, setExpandedJobs] = useState<Record<number, boolean>>({});
   const [screenshots, setScreenshots] = useState<Record<number, string>>({});
 
+  // Smart adaptive polling based on job status
   useEffect(() => {
     fetchJobs();
-    // Poll for updates every 5 seconds
-    const interval = setInterval(fetchJobs, 5000);
+
+    const hasRunningJobs = jobs.some(job => job.status === 'running');
+
+    // Adaptive polling interval
+    // - 10 seconds if there are running jobs
+    // - 30 seconds if no running jobs (just to check for new jobs or status changes)
+    const pollInterval = hasRunningJobs ? 10000 : 30000;
+
+    const interval = setInterval(fetchJobs, pollInterval);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [jobs.some(job => job.status === 'running')]); // Re-setup interval when running jobs change
 
   const fetchJobs = async () => {
     try {
@@ -294,30 +303,44 @@ export default function Dashboard() {
     router.push('/login');
   };
 
-  // Fetch papers for running/completed jobs automatically
+  // Fetch papers ONLY for running jobs, and only when count actually changes
   useEffect(() => {
     jobs.forEach(job => {
-      // Always fetch papers for running and completed jobs
-      if (job.status === 'running' || job.status === 'completed') {
+      // Only fetch for running jobs (not completed - they don't change)
+      if (job.status === 'running') {
         const cachedPapers = jobPapers[job.id];
         const shouldFetch = !cachedPapers ||
-                          (job.total_papers_found && cachedPapers.length < job.total_papers_found);
+                          (job.papers_processed && cachedPapers.length < job.papers_processed);
 
         if (shouldFetch) {
           fetchPapers(job.id);
         }
       }
     });
-  }, [jobs, fetchPapers, jobPapers]);
 
-  // Fetch screenshots for running jobs
+    // Debounce to avoid multiple fetches in quick succession
+  }, [jobs.map(j => `${j.id}-${j.papers_processed}`).join(',')]); // Only re-run when papers_processed changes
+
+  // Fetch screenshots for running jobs - less frequently
   useEffect(() => {
-    jobs.forEach(job => {
-      if (job.status === 'running') {
-        fetchScreenshot(job.id);
-      }
-    });
-  }, [jobs, fetchScreenshot]);
+    const runningJobs = jobs.filter(job => job.status === 'running');
+
+    if (runningJobs.length === 0) return;
+
+    // Fetch immediately
+    runningJobs.forEach(job => fetchScreenshot(job.id));
+
+    // Then poll screenshots every 15 seconds (less aggressive than job polling)
+    const screenshotInterval = setInterval(() => {
+      jobs.forEach(job => {
+        if (job.status === 'running') {
+          fetchScreenshot(job.id);
+        }
+      });
+    }, 15000);
+
+    return () => clearInterval(screenshotInterval);
+  }, [jobs.filter(j => j.status === 'running').map(j => j.id).join(',')]); // Only when running jobs change
 
   // Auto-expand completed jobs with papers
   useEffect(() => {

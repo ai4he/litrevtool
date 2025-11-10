@@ -76,71 +76,71 @@ export const authAPI = {
 export const jobsAPI = {
   listJobs: async () => {
     const api = await getAPIClient();
-    return api.get('/search-jobs');
+    return api.get('/jobs');
   },
 
   getJob: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}`);
+    return api.get(`/jobs/${jobId}`);
   },
 
   createJob: async (jobData: any) => {
     const api = await getAPIClient();
-    return api.post('/search-jobs', jobData);
+    return api.post('/jobs', jobData);
   },
 
   deleteJob: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.delete(`/search-jobs/${jobId}`);
+    return api.delete(`/jobs/${jobId}`);
   },
 
   pauseJob: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.post(`/search-jobs/${jobId}/pause`);
+    return api.post(`/jobs/${jobId}/pause`);
   },
 
   resumeJob: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.post(`/search-jobs/${jobId}/resume`);
+    return api.post(`/jobs/${jobId}/resume`);
   },
 
   downloadResults: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}/download`, {
+    return api.get(`/jobs/${jobId}/download`, {
       responseType: 'blob',
     });
   },
 
   downloadPrismaDiagram: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}/prisma-diagram`, {
+    return api.get(`/jobs/${jobId}/prisma-diagram`, {
       responseType: 'blob',
     });
   },
 
   downloadLatex: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}/latex`, {
+    return api.get(`/jobs/${jobId}/latex`, {
       responseType: 'blob',
     });
   },
 
   downloadBibtex: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}/bibtex`, {
+    return api.get(`/jobs/${jobId}/bibtex`, {
       responseType: 'blob',
     });
   },
 
   getPapers: async (jobId: number) => {
     const api = await getAPIClient();
-    return api.get(`/search-jobs/${jobId}/papers`);
+    return api.get(`/jobs/${jobId}/papers`);
   },
 
   getScreenshot: (jobId: number) => {
     // Return URL for screenshot (used in img src)
     const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    return `${baseURL}/api/v1/search-jobs/${jobId}/screenshot`;
+    return `${baseURL}/api/v1/jobs/${jobId}/screenshot`;
   },
 };
 

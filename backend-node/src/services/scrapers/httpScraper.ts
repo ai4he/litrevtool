@@ -106,44 +106,76 @@ export class HttpScholarScraper {
     this.lastRequestTime = Date.now();
   }
 
-  private async fetchPage(url: string): Promise<string> {
+  private async fetchPage(url: string, retryCount: number = 0): Promise<string> {
+    const MAX_ROTATION_RETRIES = 10; // Try up to 10 different Tor circuits
+
     await this.rateLimit();
 
     // Rotate user agent
     this.client.defaults.headers['User-Agent'] = this.getRandomUserAgent();
 
-    logger.info(`HTTP Scraper: Fetching ${url}`);
+    logger.info(`HTTP Scraper: Fetching ${url} (rotation attempt ${retryCount}/${MAX_ROTATION_RETRIES})`);
 
     const response = await this.client.get(url);
 
-    // Check for CAPTCHA
+    // Check for CAPTCHA or blocking
     const text = response.data.toString();
-    if (
-      response.request.res.responseUrl.toLowerCase().includes('sorry') ||
-      text.toLowerCase().includes('captcha')
-    ) {
-      this.stats.captchaCount++;
-      this.stats.consecutiveErrors++;
+    const textLower = text.toLowerCase();
+    const urlLower = response.request.res.responseUrl.toLowerCase();
+
+    const isBlocked =
+      urlLower.includes('sorry') ||
+      textLower.includes('captcha') ||
+      textLower.includes('automated queries') ||
+      textLower.includes("we're sorry") ||
+      textLower.includes('<title>sorry');
+
+    if (isBlocked) {
       logger.warn(
-        `HTTP Scraper: CAPTCHA detected! (captcha: ${this.stats.captchaCount}/3, consecutive errors: ${this.stats.consecutiveErrors})`
+        `HTTP Scraper: Blocking detected! Attempt ${retryCount + 1}/${MAX_ROTATION_RETRIES}`
       );
 
-      // LESSON LEARNED: Python used max 3 CAPTCHA retries - fail fast and switch strategies
-      if (this.stats.captchaCount >= 3) {
+      // Try rotating Tor circuit instead of failing immediately
+      if (this.useTor && retryCount < MAX_ROTATION_RETRIES) {
+        logger.info(`HTTP Scraper: 🔄 Rotating Tor circuit (attempt ${retryCount + 1}/${MAX_ROTATION_RETRIES})...`);
+
+        try {
+          await rotateTorCircuit();
+          logger.info(`HTTP Scraper: ✅ New IP obtained, retrying request...`);
+
+          // Wait 10 seconds for circuit to stabilize (not 45s - we're being aggressive)
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+
+          // Recursive retry with new circuit
+          return await this.fetchPage(url, retryCount + 1);
+        } catch (rotError) {
+          logger.error(`HTTP Scraper: ❌ Circuit rotation ${retryCount + 1} failed, trying again...`);
+
+          // Still try next rotation
+          if (retryCount + 1 < MAX_ROTATION_RETRIES) {
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+            return await this.fetchPage(url, retryCount + 1);
+          }
+        }
+      }
+
+      // Only fail after exhausting all rotation attempts
+      if (retryCount >= MAX_ROTATION_RETRIES) {
         throw new Error(
-          `CAPTCHA detected ${this.stats.captchaCount} times - HTTP strategy failed, switching to Playwright`
+          `Blocking persists after ${MAX_ROTATION_RETRIES} Tor circuit rotations - switching strategy`
         );
       }
-      throw new Error('CAPTCHA detected');
+
+      throw new Error('Blocking/CAPTCHA detected');
     }
 
-    // Reset CAPTCHA and consecutive error counters on success
+    // Reset counters on success
     if (this.stats.captchaCount > 0 || this.stats.consecutiveErrors > 0) {
       logger.info(
-        `HTTP Scraper: Success! Resetting CAPTCHA counter (${this.stats.captchaCount}) and consecutive errors (${this.stats.consecutiveErrors})`
+        `HTTP Scraper: ✅ Success after ${retryCount} rotation(s)! Resetting counters.`
       );
       this.stats.captchaCount = 0;
-      this.stats.consecutiveErrors = 0; // LESSON LEARNED: Reset on first success
+      this.stats.consecutiveErrors = 0;
     }
 
     // Human-like delay
@@ -228,6 +260,7 @@ export class HttpScholarScraper {
     maxResults?: number;
     progressCallback?: (current: number, total: number) => void | Promise<void>;
     papersCallback?: (papers: Paper[]) => void | Promise<void>;
+    statusCallback?: (message: string) => void | Promise<void>;
   }): Promise<Paper[]> {
     const allPapers: Paper[] = [];
     const seenTitles = new Set<string>();
@@ -253,6 +286,11 @@ export class HttpScholarScraper {
 
       logger.info(`HTTP Scraper: Searching year ${year || 'all'}`);
 
+      if (options.statusCallback) {
+        const yearText = year !== null ? `year ${year}` : 'all years';
+        await options.statusCallback(`🌐 HTTP scraping ${yearText} | Papers collected: ${allPapers.length}`);
+      }
+
       let start = 0;
       let consecutiveEmpty = 0;
 
@@ -268,6 +306,14 @@ export class HttpScholarScraper {
           } else if (options.startYear || options.endYear) {
             if (options.startYear) url += `&as_ylo=${options.startYear}`;
             if (options.endYear) url += `&as_yhi=${options.endYear}`;
+          }
+
+          if (options.statusCallback) {
+            const yearText = year !== null ? `year ${year}` : 'all years';
+            const pageNum = start / 10 + 1;
+            await options.statusCallback(
+              `🔍 Fetching ${yearText}, page ${pageNum} | Papers: ${allPapers.length} | Next: Random delay (2-4s) then page ${pageNum + 1}`
+            );
           }
 
           // Fetch and parse

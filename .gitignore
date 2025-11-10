@@ -56,6 +56,7 @@ htmlcov/
 
 # Application
 backend/uploads/
+backend-node/uploads/
 *.csv
 *.db
 *.sqlite
@@ -63,6 +64,10 @@ backend/uploads/
 # React
 /build
 /frontend/build
+
+# Next.js
+.next/
+next-env.d.ts
 
 # Electron
 /electron/dist

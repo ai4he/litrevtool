@@ -188,6 +188,7 @@ export class PlaywrightScholarScraper {
     maxResults?: number;
     progressCallback?: (current: number, total: number) => void | Promise<void>;
     papersCallback?: (papers: Paper[]) => void | Promise<void>;
+    statusCallback?: (message: string) => void | Promise<void>;
   }): Promise<Paper[]> {
     if (!this.page) {
       await this.initialize();
@@ -198,6 +199,8 @@ export class PlaywrightScholarScraper {
     const query = options.keywords.map((kw) => (kw.includes(' ') ? `"${kw}"` : kw)).join(' ');
 
     logger.info(`Playwright: Searching for: ${query}`);
+    logger.info(`Playwright: Year range: ${options.startYear} to ${options.endYear}`);
+    logger.info(`Playwright: Max results: ${options.maxResults}`);
 
     // Determine years
     const years =
@@ -208,10 +211,23 @@ export class PlaywrightScholarScraper {
           )
         : [null];
 
-    for (const year of years) {
-      if (options.maxResults && allPapers.length >= options.maxResults) break;
+    logger.info(`Playwright: Years to search: ${JSON.stringify(years)} (total: ${years.length})`);
+    logger.info(`Playwright: About to enter year loop...`);
 
-      logger.info(`Playwright: Searching year ${year || 'all'}`);
+    for (const year of years) {
+      logger.info(`Playwright: Inside year loop iteration, year = ${year}`);
+      logger.info(`Playwright: Checking break: maxResults=${options.maxResults}, allPapers.length=${allPapers.length}`);
+      if (options.maxResults && allPapers.length >= options.maxResults) {
+        logger.info(`Playwright: Breaking due to maxResults limit reached`);
+        break;
+      }
+
+      logger.info(`Playwright: 📅 Starting search for year ${year !== null ? year : 'all'}`);
+
+      if (options.statusCallback) {
+        const yearText = year !== null ? `year ${year}` : 'all years';
+        await options.statusCallback(`📅 Scraping ${yearText} | Papers collected: ${allPapers.length}`);
+      }
 
       let start = 0;
       let consecutiveEmpty = 0;
@@ -219,64 +235,135 @@ export class PlaywrightScholarScraper {
       while (true) {
         if (options.maxResults && allPapers.length >= options.maxResults) break;
 
-        try {
-          // Build URL
-          let url = `https://scholar.google.com/scholar?start=${start}&q=${encodeURIComponent(query)}&hl=en`;
+        // Retry logic for blocked requests
+        let rotationAttempt = 0;
+        const MAX_ROTATION_RETRIES = 10;
+        let pageSuccess = false;
 
-          if (year) {
-            url += `&as_ylo=${year}&as_yhi=${year}`;
-          } else if (options.startYear || options.endYear) {
-            if (options.startYear) url += `&as_ylo=${options.startYear}`;
-            if (options.endYear) url += `&as_yhi=${options.endYear}`;
-          }
+        while (!pageSuccess && rotationAttempt < MAX_ROTATION_RETRIES) {
+          try {
+            // Build URL
+            let url = `https://scholar.google.com/scholar?start=${start}&q=${encodeURIComponent(query)}&hl=en`;
 
-          // Proactive Tor circuit rotation (Python strategy: every 10-20 requests)
-          if (this.useTor && this.requestCount > 0 && this.requestCount % 15 === 0) {
-            logger.info(`Playwright: Rotating Tor circuit after ${this.requestCount} requests (proactive)`);
-            try {
-              await rotateTorCircuit();
-            } catch (error) {
-              logger.warn('Playwright: Proactive circuit rotation failed, continuing');
+            if (year) {
+              url += `&as_ylo=${year}&as_yhi=${year}`;
+            } else if (options.startYear || options.endYear) {
+              if (options.startYear) url += `&as_ylo=${options.startYear}`;
+              if (options.endYear) url += `&as_yhi=${options.endYear}`;
             }
-          }
 
-          this.requestCount++;
-
-          // Navigate (human-like wait)
-          await this.page!.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
-
-          // Human-like behavior: scroll and wait
-          await this.page!.evaluate(() => {
-            // @ts-ignore - Browser context
-            window.scrollBy(0, window.innerHeight / 2);
-          });
-          await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
-
-          // Take screenshot
-          await this.takeScreenshot(`year_${year || 'all'}_page_${start / 10}`);
-
-          // Check for CAPTCHA
-          const content = await this.page!.content();
-          if (content.toLowerCase().includes('captcha') || this.page!.url().includes('sorry')) {
-            logger.warn('Playwright: CAPTCHA detected - rotating Tor circuit');
-            await this.takeScreenshot('captcha');
-
-            // Rotate Tor circuit to get new IP before failing
-            if (this.useTor) {
-              logger.info('Playwright: Attempting Tor circuit rotation to bypass CAPTCHA...');
+            // Proactive Tor circuit rotation (Python strategy: every 10-20 requests)
+            if (this.useTor && this.requestCount > 0 && this.requestCount % 15 === 0) {
+              logger.info(`Playwright: Rotating Tor circuit after ${this.requestCount} requests (proactive)`);
               try {
                 await rotateTorCircuit();
-                logger.info('Playwright: New Tor IP obtained, waiting 30s before retry...');
-                await new Promise((resolve) => setTimeout(resolve, 30000));
-                // Don't throw error yet, let the retry mechanism handle it
               } catch (error) {
-                logger.error('Playwright: Circuit rotation failed');
+                logger.warn('Playwright: Proactive circuit rotation failed, continuing');
               }
             }
 
-            throw new Error('CAPTCHA detected');
-          }
+            this.requestCount++;
 
+            if (rotationAttempt > 0) {
+              logger.info(`Playwright: 🔄 Retry attempt ${rotationAttempt}/${MAX_ROTATION_RETRIES} with new Tor circuit`);
+              if (options.statusCallback) {
+                const yearText = year !== null ? `year ${year}` : 'all years';
+                await options.statusCallback(
+                  `🔄 Tor circuit rotation ${rotationAttempt}/${MAX_ROTATION_RETRIES} | ${yearText}, page ${start / 10 + 1} | Papers: ${allPapers.length}`
+                );
+              }
+            } else if (options.statusCallback) {
+              const yearText = year !== null ? `year ${year}` : 'all years';
+              const pageNum = start / 10 + 1;
+              await options.statusCallback(
+                `🔍 Fetching ${yearText}, page ${pageNum} | Papers collected: ${allPapers.length} | Next: Will wait 45s before page ${pageNum + 1}`
+              );
+            }
+
+            // Navigate (human-like wait)
+            await this.page!.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+
+            // Human-like behavior: scroll and wait
+            await this.page!.evaluate(() => {
+              // @ts-ignore - Browser context
+              window.scrollBy(0, window.innerHeight / 2);
+            });
+            await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 2000));
+
+            // Take screenshot
+            await this.takeScreenshot(
+              `year_${year || 'all'}_page_${start / 10}_attempt_${rotationAttempt}`
+            );
+
+            // Check for CAPTCHA or blocking
+            const content = await this.page!.content();
+            const contentLower = content.toLowerCase();
+            const currentUrl = this.page!.url();
+
+            const isBlocked =
+              currentUrl.includes('sorry') ||
+              contentLower.includes('captcha') ||
+              contentLower.includes('automated queries') ||
+              contentLower.includes("we're sorry") ||
+              contentLower.includes('<title>sorry');
+
+            if (isBlocked) {
+              logger.warn(
+                `Playwright: ⚠️  Blocking detected! (attempt ${rotationAttempt + 1}/${MAX_ROTATION_RETRIES})`
+              );
+              await this.takeScreenshot(`blocking_attempt_${rotationAttempt}`);
+
+              // Try rotating Tor circuit instead of failing immediately
+              if (this.useTor && rotationAttempt < MAX_ROTATION_RETRIES) {
+                logger.info(
+                  `Playwright: 🔄 Rotating Tor circuit ${rotationAttempt + 1}/${MAX_ROTATION_RETRIES}...`
+                );
+                try {
+                  await rotateTorCircuit();
+                  logger.info(`Playwright: ✅ New IP obtained, waiting 10s before retry...`);
+                  await new Promise((resolve) => setTimeout(resolve, 10000));
+
+                  // Increment and retry
+                  rotationAttempt++;
+                  continue; // Try again with new circuit
+                } catch (error) {
+                  logger.error(`Playwright: ❌ Circuit rotation ${rotationAttempt + 1} failed, trying again...`);
+                  rotationAttempt++;
+                  await new Promise((resolve) => setTimeout(resolve, 5000));
+                  continue;
+                }
+              }
+
+              // Only fail after exhausting all attempts
+              if (rotationAttempt >= MAX_ROTATION_RETRIES) {
+                throw new Error(
+                  `Blocking persists after ${MAX_ROTATION_RETRIES} Tor circuit rotations - switching strategy`
+                );
+              }
+
+              throw new Error('Blocking/CAPTCHA detected');
+            }
+
+            // Success! Exit retry loop
+            pageSuccess = true;
+          } catch (error: any) {
+            // If it's blocking and we have retries left, the continue above will handle it
+            // If it's another error, break out of retry loop
+            if (!error.message?.includes('Blocking') && !error.message?.includes('CAPTCHA')) {
+              throw error;
+            }
+          }
+        }
+
+        // If we exhausted all retries without success, fail the scraper strategy
+        if (!pageSuccess) {
+          throw new Error(
+            `Failed to fetch page after ${MAX_ROTATION_RETRIES} Tor circuit rotation attempts - switching to next scraper strategy`
+          );
+        }
+
+        // After successful page load (outside retry loop)
+        try {
           // Wait for results (don't require visibility - some results may be lazily loaded)
           await this.page!.waitForSelector('.gs_r', { timeout: 10000, state: 'attached' });
 

@@ -9,7 +9,7 @@ module.exports = {
     {
       name: 'litrev-backend',
       cwd: './backend-node',
-      script: 'dist/index.js',
+      script: 'dist/main.js',
       instances: 1,
       exec_mode: 'cluster',
       autorestart: true,
@@ -29,7 +29,7 @@ module.exports = {
     {
       name: 'litrev-worker',
       cwd: './backend-node',
-      script: 'dist/worker.js',
+      script: 'dist/tasks/worker.js',
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,

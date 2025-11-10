@@ -24,6 +24,7 @@ interface SearchOptions {
   maxResults?: number;
   progressCallback?: (current: number, total: number) => void | Promise<void>;
   papersCallback?: (papers: Paper[]) => void | Promise<void>;
+  statusCallback?: (message: string) => void | Promise<void>;
 }
 
 interface StrategyStats {
@@ -73,6 +74,9 @@ class HttpStrategy extends ScraperStrategy {
   async search(options: SearchOptions): Promise<Paper[]> {
     try {
       logger.info('HTTP Strategy: Starting search');
+      if (options.statusCallback) {
+        await options.statusCallback('🌐 Using HTTP scraper with Tor rotation');
+      }
       const results = await this.scraper.search({
         keywords: options.keywords,
         startYear: options.startYear,
@@ -80,6 +84,7 @@ class HttpStrategy extends ScraperStrategy {
         maxResults: options.maxResults,
         progressCallback: options.progressCallback,
         papersCallback: options.papersCallback,
+        statusCallback: options.statusCallback,
       });
 
       // Callbacks are now called incrementally by the scraper
@@ -130,6 +135,9 @@ class PlaywrightStrategy extends ScraperStrategy {
 
     try {
       logger.info('Playwright Strategy: Starting search');
+      if (options.statusCallback) {
+        await options.statusCallback('🎭 Using Playwright browser automation with Tor');
+      }
       await scraper.initialize();
 
       const results = await scraper.search({
@@ -139,6 +147,7 @@ class PlaywrightStrategy extends ScraperStrategy {
         maxResults: options.maxResults,
         progressCallback: options.progressCallback,
         papersCallback: options.papersCallback,
+        statusCallback: options.statusCallback,
       });
 
       // Callbacks are now called incrementally by the scraper

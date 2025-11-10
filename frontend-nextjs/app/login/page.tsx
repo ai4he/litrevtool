@@ -5,23 +5,33 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Container, Paper, Typography, Box } from '@mui/material';
-import GoogleOAuthProvider from '@/lib/GoogleOAuthProvider';
+import { GoogleOAuthProvider } from '@/lib/GoogleOAuthProvider';
+import { authAPI } from '@/lib/api';
 
 function LoginContent() {
-  const { login, user, loading } = useAuth();
+  const { login, user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     // Redirect if already logged in
-    if (!loading && user) {
+    if (!isLoading && user) {
       router.push('/dashboard');
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
-    const success = await login(credentialResponse.credential);
-    if (success) {
+    try {
+      // Call backend API to verify Google credential and get JWT + user data
+      const response = await authAPI.googleLogin(credentialResponse.credential);
+      const { access_token, user: userData } = response.data;
+
+      // Update auth context with token and user data
+      login(access_token, userData);
+
+      // Redirect to dashboard
       router.push('/dashboard');
+    } catch (error) {
+      console.error('Login error:', error);
     }
   };
 
@@ -29,7 +39,7 @@ function LoginContent() {
     console.error('Google login failed');
   };
 
-  if (loading) {
+  if (isLoading) {
     return null;
   }
 

@@ -64,6 +64,18 @@ export async function runSearchJob(jobId: string): Promise<void> {
       await job.save();
     };
 
+    // Status callback to update job status in real-time
+    const statusCallback = async (message: string) => {
+      const timestamp = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      job.statusMessage = `[${timestamp}] ${message}`;
+      await job.save();
+      logger.info(`Job ${jobId} status: ${message}`);
+    };
+
     job.statusMessage = 'Searching Google Scholar with multi-strategy approach...';
     await job.save();
 
@@ -75,6 +87,7 @@ export async function runSearchJob(jobId: string): Promise<void> {
       maxResults: job.maxResults || undefined,
       progressCallback,
       papersCallback,
+      statusCallback,
     });
 
     logger.info(`Found ${papers.length} papers for job ${jobId}`);
